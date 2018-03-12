@@ -14,6 +14,8 @@ const (
 	wordMask           = 077777
 )
 
+// test
+
 type ebank [erasableBankSize]uint16
 type fbank [fixedBankSize]uint16
 type bank []uint16
