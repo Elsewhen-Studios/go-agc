@@ -19,17 +19,13 @@ func TestErasableSequentialWrite(t *testing.T) {
 	// in a default setup, writing sequentially to all erasable
 	// memory will fill E0, E1, E2, and E0 again
 	for b := 1; b <= 2; b++ {
-		for i := 0; i < erasableBankSize; i++ {
-			assert.Equal(t, uint16(b*erasableBankSize+i), mm.erasable[b][i], "bank E%d[%d]", b, i)
-		}
+		assertErasableBank(t, b, mm.erasable[b], uint16(b*erasableBankSize))
 	}
 
 	// since E0 is mapped to both 0000 - 0377 and 1400 - 1777 the
 	// sequential write will result in writing it twice, so it
 	// will end up with the second values
-	for i := 0; i < erasableBankSize; i++ {
-		assert.Equal(t, uint16(01400+i), mm.erasable[0][i], "bank E0[%d]", i)
-	}
+	assertErasableBank(t, 0, mm.erasable[0], uint16(3*erasableBankSize))
 }
 
 func TestErasableBankSelection(t *testing.T) {
@@ -43,7 +39,7 @@ func TestErasableBankSelection(t *testing.T) {
 		// now fill bank 'b' by writing to addresses 01400 - 01777
 		// which correspond to the switchable addresses
 		for i := 0; i < erasableBankSize; i++ {
-			assert.NoError(t, mm.Write(01400+i, uint16(b+100)))
+			assert.NoError(t, mm.Write(01400+i, uint16(b+100+i)))
 		}
 	}
 
@@ -51,7 +47,7 @@ func TestErasableBankSelection(t *testing.T) {
 	// now each bank should be filled with its
 	// bank index + 100
 	for b := 0; b < erasableBankCount; b++ {
-		assertBank(t, b, mm.erasable[b][:], uint16(b+100))
+		assertErasableBank(t, b, mm.erasable[b], uint16(b+100))
 	}
 }
 
@@ -73,10 +69,45 @@ func TestSequentialRead(t *testing.T) {
 	}
 
 	// act (and assert)
+	//Note: This test bypasses the erasable bank 0 address exceptions which are only applied through Write()
 	for i := 0; i < totalMemorySize; i++ {
 		val, err := mm.Read(i)
 		assert.NoError(t, err)
 		assert.Equal(t, uint16(i), val, "address %o", i)
+	}
+}
+
+func TestFixedBankSelection(t *testing.T) {
+	//arrange
+	var mm Main
+	for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
+		for i := 0; i < fixedBankSize; i++ {
+			mm.fixed[b][i] = uint16(b + 100 + i)
+		}
+	}
+
+	// act (and assert)
+	mm.sb = false
+	for b := 0; b < fixedBankCount; b++ {
+		mm.fb = b
+		for i := 0; i < fixedBankSize; i++ {
+			val, err := mm.Read(startOfFixedMemory + i)
+			assert.NoError(t, err)
+			assert.Equal(t, uint16(b+100+i), val, "address %o", i)
+		}
+	}
+	mm.sb = true
+	for b := 0; b < fixedBankCount; b++ {
+		mm.fb = b
+		for i := 0; i < fixedBankSize; i++ {
+			val, err := mm.Read(startOfFixedMemory + i)
+			assert.NoError(t, err)
+			expected := b + 100 + i
+			if b >= fixedBankCount-fixedSBBankCount {
+				expected += fixedSBBankCount
+			}
+			assert.Equal(t, uint16(expected), val, "address %o", i)
+		}
 	}
 }
 
@@ -91,32 +122,71 @@ func TestRoundTripStrips16thBit(t *testing.T) {
 	assert.Equal(t, uint16(0x7FFF), val, "read")
 }
 
-func TestReadPastEndOfMemory(t *testing.T) {
-	var mm Main
-	_, err := mm.Read(totalMemorySize + 1)
+func TestReadOutOfRange(t *testing.T) {
+	var (
+		mm  Main
+		err error
+	)
+
+	_, err = mm.Read(totalMemorySize + 1)
+	assert.Error(t, err)
+
+	_, err = mm.Read(-1)
 	assert.Error(t, err)
 }
 
-func TestWritePastEndOfMemory(t *testing.T) {
-	var mm Main
-	err := mm.Write(totalMemorySize+1, 123)
+func TestWriteOutOfRange(t *testing.T) {
+	var (
+		mm  Main
+		err error
+	)
+
+	err = mm.Write(totalMemorySize, 123)
+	assert.Error(t, err)
+
+	err = mm.Write(-1, 123)
 	assert.Error(t, err)
 }
 
 func TestWriteToFixedMemory(t *testing.T) {
 	var mm Main
-	err := mm.Write(startOfFixedMemory+1, 123)
+	err := mm.Write(startOfFixedMemory, 123)
 	assert.Error(t, err)
 }
 
+func TestBankOutOfRange(t *testing.T) {
+	var (
+		mm  Main
+		err error
+	)
+
+	mm.eb = -1
+	_, err = mm.Read(erasableBankSize * 3)
+	assert.Error(t, err)
+
+	mm.eb = erasableBankCount + 1
+	_, err = mm.Read(erasableBankSize * 3)
+	assert.Error(t, err)
+
+	mm.fb = -1
+	_, err = mm.Read(startOfFixedMemory)
+	assert.Error(t, err)
+
+	mm.fb = fixedBankCount + 1
+	_, err = mm.Read(startOfFixedMemory)
+	assert.Error(t, err)
+}
+
+/*
 func fillBank(b []uint16, val uint16) {
 	for i := 0; i < len(b); i++ {
 		b[i] = val
 	}
 }
+*/
 
-func assertBank(t *testing.T, bidx int, b []uint16, expected uint16) {
+func assertErasableBank(t *testing.T, bidx int, b ebank, baseValue uint16) {
 	for i := 0; i < erasableBankSize; i++ {
-		assert.Equal(t, expected, b[i], "bank E%d[%d]", bidx, i)
+		assert.Equal(t, baseValue+uint16(i), b[i], "bank E%d[%d]", bidx, i)
 	}
 }

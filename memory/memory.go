@@ -8,7 +8,8 @@ const (
 	erasableBankSize   = 0400
 	fixedBankSize      = 02000
 	erasableBankCount  = 8
-	fixedBankCount     = 36
+	fixedBankCount     = 32
+	fixedSBBankCount   = 8
 	startOfFixedMemory = 02000
 	totalMemorySize    = 010000
 	wordMask           = 077777
@@ -23,7 +24,7 @@ type bank []uint16
 // Main represents the full addressable main memory of the AGC.
 type Main struct {
 	erasable [erasableBankCount]ebank
-	fixed    [fixedBankCount]fbank
+	fixed    [fixedBankCount + fixedSBBankCount]fbank
 	eb       int
 	fb       int
 	sb       bool
@@ -57,7 +58,7 @@ func (mm *Main) Write(address int, val uint16) error {
 }
 
 func (mm *Main) selectBank(address int) (bank, error) {
-	if address >= totalMemorySize {
+	if address < 0 || address >= totalMemorySize {
 		return nil, errors.Errorf("address %o is out of range", address)
 	}
 
@@ -69,6 +70,10 @@ func (mm *Main) selectBank(address int) (bank, error) {
 		// 01400 - 01777 -> erasable[eb]
 		idx := address / erasableBankSize
 		if idx == 3 {
+			if mm.eb < 0 || mm.eb >= erasableBankCount {
+				return nil, errors.Errorf("erasable bank %o is out of range", mm.eb)
+			}
+
 			idx = mm.eb
 		}
 		return mm.erasable[idx][:], nil
@@ -80,6 +85,10 @@ func (mm *Main) selectBank(address int) (bank, error) {
 	// 06000 - 07777 -> fixed[3]
 	idx := (address-startOfFixedMemory)/fixedBankSize + 1
 	if idx == 1 {
+		if mm.fb < 0 || mm.fb >= fixedBankCount {
+			return nil, errors.Errorf("fixed bank %o is out of range", mm.eb)
+		}
+
 		idx = mm.fb
 		if mm.fb >= 030 && mm.sb {
 			// the "super-bit" is set so fb 030 - 037 are
