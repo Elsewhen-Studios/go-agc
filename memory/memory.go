@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"encoding/binary"
+
 	"github.com/pkg/errors"
 )
 
@@ -97,4 +99,75 @@ func (mm *Main) selectBank(address int) (bank, error) {
 		}
 	}
 	return mm.fixed[idx][:], nil
+}
+
+// Loader is used to stream data into a Main instance.
+type Loader struct {
+	MM *Main
+
+	leftOver *byte
+
+	pos int
+	cb  []uint16
+
+	cbi   int
+	fixed bool
+}
+
+func (l *Loader) Write(p []byte) (n int, err error) {
+	if l.cb == nil {
+		l.cb = l.MM.erasable[0][:]
+	}
+
+	pLen := len(p)
+	if l.leftOver != nil {
+		// we have a leftOver byte from a previous write so go
+		// ahead and tack it onto the front of p
+		p = append([]byte{*l.leftOver}, p...)
+		l.leftOver = nil
+	}
+
+	for i := 0; i < len(p); i += 2 {
+		if i == len(p)-1 {
+			// we need two bytes to make a uint16 but we only
+			// have one left, so store it away and hope the
+			// next write gives us our second byte
+			tmp := p[i]
+			l.leftOver = &tmp
+			return pLen, nil
+		}
+
+		// first check for end of bounds before we write
+		if l.pos >= len(l.cb) {
+			// we're done with this bank, time to
+			// move onto the next one
+			l.cbi++
+			if l.fixed && l.cbi >= fixedBankCount {
+				// we've reached the end and we have no room
+				// left to write in, so we have to error
+				return i, errors.Errorf("reached end of memory")
+			} else if !l.fixed && l.cbi >= erasableBankCount {
+				// we're done with the erasable banks, move
+				// onto the fixed banks
+				l.cbi = 0
+				l.fixed = true
+			}
+
+			// now that we've handled bounds check, grab the
+			// next bank and rest our pos
+			if l.fixed {
+				l.cb = l.MM.fixed[l.cbi][:]
+			} else {
+				l.cb = l.MM.erasable[l.cbi][:]
+			}
+			l.pos = 0
+		}
+
+		val := binary.BigEndian.Uint16(p[i:])
+		l.cb[l.pos] = val
+		l.pos++
+	}
+
+	// we wrote all the data without trouble
+	return pLen, nil
 }

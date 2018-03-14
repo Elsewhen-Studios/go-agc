@@ -1,6 +1,9 @@
 package memory
 
 import (
+	"bytes"
+	"encoding/binary"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -188,5 +191,63 @@ func fillBank(b []uint16, val uint16) {
 func assertErasableBank(t *testing.T, bidx int, b ebank, baseValue uint16) {
 	for i := 0; i < erasableBankSize; i++ {
 		assert.Equal(t, baseValue+uint16(i), b[i], "bank E%d[%d]", bidx, i)
+	}
+}
+
+func TestLoader(t *testing.T) {
+	// arrange
+	var mm Main
+	l := &Loader{MM: &mm}
+
+	buf := new(bytes.Buffer)
+	for b := 0; b < erasableBankCount; b++ {
+		for i := 0; i < erasableBankSize; i++ {
+			buf.Write([]byte{0xE, byte(b)})
+		}
+	}
+	for b := 0; b < fixedBankCount; b++ {
+		for i := 0; i < fixedBankSize; i++ {
+			buf.Write([]byte{0xF, byte(b)})
+		}
+	}
+	expectedLen := int64(buf.Len())
+
+	// act
+	n, err := io.Copy(l, buf)
+
+	// assert
+	assert.Equal(t, expectedLen, n, "bytes copied")
+	assert.NoError(t, err, "io.Copy error")
+
+	for b := 0; b < erasableBankCount; b++ {
+		assertBank(t, b, mm.erasable[b][:], uint16(0xE00+b))
+	}
+	for b := 0; b < fixedBankCount; b++ {
+		assertBank(t, b, mm.fixed[b][:], uint16(0xF00+b))
+	}
+}
+
+func TestLoader_SplitWrites(t *testing.T) {
+	// arrange
+	var mm Main
+	l := &Loader{MM: &mm}
+	raw := make([]byte, erasableBankSize*2)
+	for i := 0; i < erasableBankSize; i++ {
+		binary.BigEndian.PutUint16(raw[i*2:], uint16(i))
+	}
+
+	// act
+	for i := 0; i < len(raw); {
+		for j := 1; j <= 3 && i+j <= len(raw); j++ {
+			n, err := l.Write(raw[i : i+j])
+			assert.Equal(t, j, n, "i:%d j:%d bytes copied", i, j)
+			assert.NoError(t, err, "i:%d j:%d error", i, j)
+			i += j
+		}
+	}
+
+	// assert
+	for i := 0; i < erasableBankSize; i++ {
+		assert.Equal(t, uint16(i), mm.erasable[0][i], "E0[%d]", i)
 	}
 }
