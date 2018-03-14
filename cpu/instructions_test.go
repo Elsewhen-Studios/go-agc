@@ -124,6 +124,72 @@ func TestInstructionCA(t *testing.T) {
 	})
 }
 
+func TestInstructionCS(t *testing.T) {
+	runInstructionTest(t, "CS", "read from memory", func(t *testing.T, cpu *CPU, i *instruction) {
+		// memory cells are 15bits wide, so this verifies
+		// proper handling of a 15bit word into a 16bit register
+
+		// arrange
+		cpu.mm.Write(123, 0100456)
+
+		// act
+		err := i.execute(cpu, i, 123)
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(037321), cpu.reg[regA])
+	})
+
+	runInstructionTest(t, "CS", "read from Q", func(t *testing.T, cpu *CPU, i *instruction) {
+		// the Q register is also 16 bits wide, so this
+		// test verifies that the 16th bit can be loaded
+		// correctly
+
+		// arrange
+		cpu.reg.Set(regQ, 0100456)
+
+		// act
+		err := i.execute(cpu, i, uint16(regQ))
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(077321), cpu.reg[regA])
+	})
+
+	runInstructionTest(t, "CS", "read from CYR", func(t *testing.T, cpu *CPU, i *instruction) {
+		// the CA instruction rewrites the memory location after
+		// reading it, so the editing registers will re-edit and
+		// we want to verify that is the case
+
+		// arrange
+		cpu.reg.Set(regCYR, 000400) // this write will actually store 000200 since it gets rotated
+
+		// act
+		err := i.execute(cpu, i, uint16(regCYR))
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0177577), cpu.reg[regA])
+		assert.Equal(t, uint16(0000100), cpu.reg[regCYR])
+	})
+
+	runInstructionTest(t, "CS", "read from fixed memory", func(t *testing.T, cpu *CPU, i *instruction) {
+		// the CA instruction rewrites the memory location after
+		// reading it (but only if the address is in erasable
+		// memory) so verify we don't try to write to fixed memory
+
+		// arrange
+		cpu.reg.Set(regA, 123)
+
+		// act
+		err := i.execute(cpu, i, uint16(04500))
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0177777), cpu.reg[regA])
+	})
+}
+
 func TestInstructionTS(t *testing.T) {
 	runInstructionTest(t, "TS", "positive overflow", func(t *testing.T, cpu *CPU, i *instruction) {
 		// arrange
