@@ -114,15 +114,27 @@ func TestFixedBankSelection(t *testing.T) {
 	}
 }
 
-func TestRoundTripStrips16thBit(t *testing.T) {
+func TestRoundTripOverflowCorrection(t *testing.T) {
 	var mm Main
 
-	// write 16 set bits out to memory and ensure when
-	// we read it back it is only 15 bits
-	assert.NoError(t, mm.Write(123, 0xFFFF), "write")
-	val, err := mm.Read(123)
-	assert.NoError(t, err, "read")
-	assert.Equal(t, uint16(0x7FFF), val, "read")
+	t.Run("positive overflow", func(t *testing.T) {
+		// Write an overflowed word (16th bit != 15th bit)
+		// and verify that it is overflow corrected.
+		assert.NoError(t, mm.Write(123, 17318), "write")
+		val, err := mm.Read(123)
+		assert.NoError(t, err, "read")
+		assert.Equal(t, uint16(934), val, "read")
+	})
+
+	t.Run("negative overflow", func(t *testing.T) {
+		// Now test a negative overflow (an underflow)
+		// Note: the AGC uses 1's complement so the MSB
+		// is actually a sign bit (48217 = -17318)
+		assert.NoError(t, mm.Write(124, 48217), "write")
+		val, err := mm.Read(124)
+		assert.NoError(t, err, "read")
+		assert.Equal(t, uint16(64601), val, "read")
+	})
 }
 
 func TestReadOutOfRange(t *testing.T) {

@@ -53,9 +53,11 @@ func (mm *Main) Write(address int, val uint16) error {
 		return errors.Errorf("address %o is fixed and cannot be written", address)
 	}
 
-	// only store 15 bits because the 16th bit is used for parity
-	// in the hardware, here we just discard it
-	b[address%len(b)] = val & wordMask
+	// memory cells are 15-bit words and so the 16th bit can't be stored, but
+	// some registers are 16 bits wide, so whenever a 16 bit value is written
+	// to memory it is overflow-corrected, which entails assuming the 16th bit
+	// is correct and copying it over the 15th bit
+	b[address%len(b)] = (val & 0100000 >> 1) | (val & 0137777)
 	return nil
 }
 
