@@ -10,26 +10,32 @@ type instruction struct {
 }
 
 func decodeInstruction(instr uint16) (instruction, uint16) {
+	bestMatch := instruction{addressMask: invalidAddress}
 	for _, i := range instructionSet {
-		addr := instr & i.addressMask
-		if i.code == instr^addr {
-			return i, addr
+		if i.code == instr&^i.addressMask && i.addressMask < bestMatch.addressMask {
+			bestMatch = i
 		}
 	}
 
-	panic("bad instruction")
+	if bestMatch.addressMask == invalidAddress {
+		panic("bad instruction")
+	}
+
+	return bestMatch, instr & bestMatch.addressMask
 }
 
 const (
-	mask12BitAddress = 07777
+	maskNoAddress    = 00000
 	mask10BitAddress = 01777
+	mask12BitAddress = 07777
+	invalidAddress   = 077777
 )
 
 var instructionSet = []instruction{
 	instruction{
 		name:        "RELINT",
 		code:        000003,
-		addressMask: 00000,
+		addressMask: maskNoAddress,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = false
 			fmt.Println("    interrupts enabled")
@@ -39,7 +45,7 @@ var instructionSet = []instruction{
 	instruction{
 		name:        "INHINT",
 		code:        000004,
-		addressMask: 00000,
+		addressMask: maskNoAddress,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = true
 			fmt.Println("    interrupts disabled")
