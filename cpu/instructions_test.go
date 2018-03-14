@@ -82,6 +82,59 @@ func TestInstructionCA(t *testing.T) {
 	})
 }
 
+func TestInstructionTS(t *testing.T) {
+	runInstructionTest(t, "TS", "positive overflow", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regA, 040123)
+		cpu.reg.Set(regZ, 100)
+
+		// act
+		err := i.execute(cpu, i, 123)
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(1), cpu.reg[regA])
+		assert.Equal(t, uint16(101), cpu.reg[regZ])
+		val, err := cpu.mm.Read(123)
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0123), val)
+	})
+
+	runInstructionTest(t, "TS", "negative overflow", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regA, 0100123)
+		cpu.reg.Set(regZ, 100)
+
+		// act
+		err := i.execute(cpu, i, 123)
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0177776), cpu.reg[regA])
+		assert.Equal(t, uint16(101), cpu.reg[regZ])
+		val, err := cpu.mm.Read(123)
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0140123), val)
+	})
+
+	runInstructionTest(t, "TS", "no overflow", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regA, 0123)
+		cpu.reg.Set(regZ, 100)
+
+		// act
+		err := i.execute(cpu, i, 123)
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0123), cpu.reg[regA])
+		assert.Equal(t, uint16(100), cpu.reg[regZ])
+		val, err := cpu.mm.Read(123)
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0123), val)
+	})
+}
+
 func runInstructionTest(t *testing.T, name, scenario string, f func(*testing.T, *CPU, *instruction)) {
 	subTestName := "instruction " + name
 	if len(scenario) > 0 {

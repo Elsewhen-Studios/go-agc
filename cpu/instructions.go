@@ -49,4 +49,30 @@ var instructionSet = []instruction{
 			return nil
 		},
 	},
+	instruction{
+		name:        "TS",
+		code:        054000,
+		addressMask: mask10BitAddress,
+		execute: func(c *CPU, i *instruction, addr uint16) error {
+			fmt.Printf("    Wrote %05o from A to %05o\n", c.reg[regA], addr)
+			if err := c.mm.Write(int(addr), c.reg[regA]); err != nil {
+				return err
+			}
+			switch c.overflow() {
+			case 0:
+				// no overflow, no special behavior
+			case -1:
+				// negative overflow, set A to -1 and increment Z (to skip the next instruction)
+				c.reg.Set(regA, 0177776)
+				c.reg[regZ]++
+				fmt.Println("    A set to -1 and skipping next instruction")
+			case +1:
+				// positive overflow, set A to +1 and increment Z (to skip the next instruction)
+				c.reg.Set(regA, 1)
+				c.reg[regZ]++
+				fmt.Println("    A set to +1 and skipping next instruction")
+			}
+			return nil
+		},
+	},
 }
