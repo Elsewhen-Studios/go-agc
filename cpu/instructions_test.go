@@ -16,6 +16,20 @@ func TestDecodeInstruction(t *testing.T) {
 	assert.Equal(t, uint16(07777), address, "address")
 }
 
+func TestInstructionTCF(t *testing.T) {
+	runInstructionTest(t, "TCF", "", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regZ, 0123)
+
+		// act
+		err := i.execute(cpu, i, 0321)
+
+		// assert
+		assert.NoError(t, err)
+		assert.Equal(t, uint16(0321), cpu.reg[regZ])
+	})
+}
+
 func TestInstructionCA(t *testing.T) {
 	runInstructionTest(t, "CA", "read from memory", func(t *testing.T, cpu *CPU, i *instruction) {
 		// memory cells are 15bits wide, so this verifies

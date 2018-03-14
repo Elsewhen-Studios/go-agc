@@ -27,6 +27,16 @@ const (
 
 var instructionSet = []instruction{
 	instruction{
+		name:        "TCF",
+		code:        010000,
+		addressMask: mask12BitAddress,
+		execute: func(c *CPU, i *instruction, addr uint16) error {
+			fmt.Printf("    jumping to %05o\n", addr)
+			c.reg.Set(regZ, addr)
+			return nil
+		},
+	},
+	instruction{
 		name:        "CA",
 		code:        030000,
 		addressMask: mask12BitAddress,
