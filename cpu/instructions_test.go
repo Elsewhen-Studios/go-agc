@@ -16,6 +16,34 @@ func TestDecodeInstruction(t *testing.T) {
 	assert.Equal(t, uint16(07777), address, "address")
 }
 
+func TestInstructionRELINT(t *testing.T) {
+	runInstructionTest(t, "RELINT", "", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.intsOff = true
+
+		// act
+		err := i.execute(cpu, i, 0)
+
+		// assert
+		assert.NoError(t, err)
+		assert.False(t, cpu.intsOff)
+	})
+}
+
+func TestInstructionINHINT(t *testing.T) {
+	runInstructionTest(t, "INHINT", "", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.intsOff = false
+
+		// act
+		err := i.execute(cpu, i, 0)
+
+		// assert
+		assert.NoError(t, err)
+		assert.True(t, cpu.intsOff)
+	})
+}
+
 func TestInstructionTCF(t *testing.T) {
 	runInstructionTest(t, "TCF", "", func(t *testing.T, cpu *CPU, i *instruction) {
 		// arrange

@@ -27,6 +27,26 @@ const (
 
 var instructionSet = []instruction{
 	instruction{
+		name:        "RELINT",
+		code:        000003,
+		addressMask: 00000,
+		execute: func(c *CPU, i *instruction, addr uint16) error {
+			c.intsOff = false
+			fmt.Println("    interrupts enabled")
+			return nil
+		},
+	},
+	instruction{
+		name:        "INHINT",
+		code:        000004,
+		addressMask: 00000,
+		execute: func(c *CPU, i *instruction, addr uint16) error {
+			c.intsOff = true
+			fmt.Println("    interrupts disabled")
+			return nil
+		},
+	},
+	instruction{
 		name:        "TCF",
 		code:        010000,
 		addressMask: mask12BitAddress,
