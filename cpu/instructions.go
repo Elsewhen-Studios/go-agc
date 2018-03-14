@@ -9,26 +9,25 @@ type instruction struct {
 	execute     func(*CPU, *instruction, uint16) error
 }
 
-func decodeInstruction(instr uint16) (instruction, uint16) {
-	bestMatch := instruction{addressMask: invalidAddress}
-	for _, i := range instructionSet {
-		if i.code == instr&^i.addressMask && i.addressMask < bestMatch.addressMask {
-			bestMatch = i
+func decodeInstruction(machineCode uint16) (instruction, uint16) {
+	var bestMatch *instruction
+	for i, inst := range instructionSet {
+		if inst.code == machineCode&^inst.addressMask && (bestMatch == nil || inst.addressMask < bestMatch.addressMask) {
+			bestMatch = &instructionSet[i]
 		}
 	}
 
-	if bestMatch.addressMask == invalidAddress {
+	if bestMatch == nil {
 		panic("bad instruction")
 	}
 
-	return bestMatch, instr & bestMatch.addressMask
+	return *bestMatch, machineCode & bestMatch.addressMask
 }
 
 const (
 	maskNoAddress    = 00000
 	mask10BitAddress = 01777
 	mask12BitAddress = 07777
-	invalidAddress   = 077777
 )
 
 var instructionSet = []instruction{
