@@ -200,14 +200,9 @@ func TestLoader(t *testing.T) {
 	l := &Loader{MM: &mm}
 
 	buf := new(bytes.Buffer)
-	for b := 0; b < erasableBankCount; b++ {
-		for i := 0; i < erasableBankSize; i++ {
-			buf.Write([]byte{0xE, byte(b)})
-		}
-	}
-	for b := 0; b < fixedBankCount; b++ {
+	for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
 		for i := 0; i < fixedBankSize; i++ {
-			buf.Write([]byte{0xF, byte(b)})
+			buf.Write([]byte{0x1E, byte(b) << 1})
 		}
 	}
 	expectedLen := int64(buf.Len())
@@ -219,11 +214,10 @@ func TestLoader(t *testing.T) {
 	assert.Equal(t, expectedLen, n, "bytes copied")
 	assert.NoError(t, err, "io.Copy error")
 
-	for b := 0; b < erasableBankCount; b++ {
-		assertBank(t, b, mm.erasable[b][:], uint16(0xE00+b))
-	}
-	for b := 0; b < fixedBankCount; b++ {
-		assertBank(t, b, mm.fixed[b][:], uint16(0xF00+b))
+	for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
+		for i := 0; i < fixedBankSize; i++ {
+			assert.Equal(t, uint16(0xF00+b), mm.fixed[b][i], "F%d[%d]", b, i)
+		}
 	}
 }
 
@@ -231,9 +225,9 @@ func TestLoader_SplitWrites(t *testing.T) {
 	// arrange
 	var mm Main
 	l := &Loader{MM: &mm}
-	raw := make([]byte, erasableBankSize*2)
-	for i := 0; i < erasableBankSize; i++ {
-		binary.BigEndian.PutUint16(raw[i*2:], uint16(i))
+	raw := make([]byte, fixedBankSize*2)
+	for i := 0; i < fixedBankSize; i++ {
+		binary.BigEndian.PutUint16(raw[i*2:], uint16(i)<<1)
 	}
 
 	// act
@@ -247,7 +241,7 @@ func TestLoader_SplitWrites(t *testing.T) {
 	}
 
 	// assert
-	for i := 0; i < erasableBankSize; i++ {
-		assert.Equal(t, uint16(i), mm.erasable[0][i], "E0[%d]", i)
+	for i := 0; i < fixedBankSize; i++ {
+		assert.Equal(t, uint16(i), mm.fixed[0][i], "F0[%d]", i)
 	}
 }

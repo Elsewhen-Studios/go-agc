@@ -109,14 +109,12 @@ type Loader struct {
 
 	pos int
 	cb  []uint16
-
-	cbi   int
-	fixed bool
+	cbi int
 }
 
 func (l *Loader) Write(p []byte) (n int, err error) {
 	if l.cb == nil {
-		l.cb = l.MM.erasable[0][:]
+		l.cb = l.MM.fixed[0][:]
 	}
 
 	pLen := len(p)
@@ -142,29 +140,20 @@ func (l *Loader) Write(p []byte) (n int, err error) {
 			// we're done with this bank, time to
 			// move onto the next one
 			l.cbi++
-			if l.fixed && l.cbi >= fixedBankCount {
+			if l.cbi >= len(l.MM.fixed) {
 				// we've reached the end and we have no room
 				// left to write in, so we have to error
 				return i, errors.Errorf("reached end of memory")
-			} else if !l.fixed && l.cbi >= erasableBankCount {
-				// we're done with the erasable banks, move
-				// onto the fixed banks
-				l.cbi = 0
-				l.fixed = true
 			}
 
 			// now that we've handled bounds check, grab the
 			// next bank and rest our pos
-			if l.fixed {
-				l.cb = l.MM.fixed[l.cbi][:]
-			} else {
-				l.cb = l.MM.erasable[l.cbi][:]
-			}
+			l.cb = l.MM.fixed[l.cbi][:]
 			l.pos = 0
 		}
 
 		val := binary.BigEndian.Uint16(p[i:])
-		l.cb[l.pos] = val
+		l.cb[l.pos] = val >> 1
 		l.pos++
 	}
 
