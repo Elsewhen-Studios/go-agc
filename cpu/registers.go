@@ -14,7 +14,13 @@ const (
 	regFB
 	regZ
 	regBB
-	regCYR = 020
+	regCYR   = 020
+	regTIME2 = 024
+	regTIME1 = iota
+	regTIME3
+	regTIME4
+	regTIME5
+	regTIME6
 )
 
 type registers [061]uint16

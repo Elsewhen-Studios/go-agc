@@ -7,6 +7,12 @@ import (
 	"github.com/Elsewhen-Studios/go-agc/memory"
 )
 
+const (
+	interval10ms  = 893
+	interval7_5ms = interval10ms * 3 / 4
+	interval5ms   = interval10ms / 2
+)
+
 type CPU struct {
 	mm redirectedMemory
 
@@ -31,23 +37,65 @@ func NewCPU(mem io.Reader) (*CPU, error) {
 
 func (c *CPU) Run() {
 	c.reg.Set(regZ, 04000)
+	var (
+		time13Cycles     int
+		time4Cycles      = -interval7_5ms
+		time5Cycles      = -interval5ms
+		pendingSequences []*sequence
+	)
 
 	for {
-		val, err := c.mm.Read(int(c.reg[regZ]))
-		if err != nil {
-			panic(err)
+		var timing int
+
+		// check for any pending unprogrammed sequences
+		if len(pendingSequences) > 0 {
+			seq := pendingSequences[len(pendingSequences)-1]
+			pendingSequences = pendingSequences[:len(pendingSequences)-1]
+
+			fmt.Printf("----: %s\n", seq.name)
+			if subSeq := seq.execute(c, seq); subSeq != nil {
+				pendingSequences = append(pendingSequences, subSeq)
+			}
+
+			timing = seq.timing
+		} else {
+			val, err := c.mm.Read(int(c.reg[regZ]))
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Printf("%04o: %05o (%04x, %016b)", c.reg[regZ], val, val<<1, val)
+
+			// now increment the PC counter
+			c.reg[regZ]++
+
+			instr, address := decodeInstruction(val)
+			fmt.Printf(" {%-6s %05o} T1/3:%3d  T4:%3d  T5:%3d\n", instr.name, address, time13Cycles, time4Cycles, time5Cycles)
+
+			if err := instr.execute(c, &instr, address); err != nil {
+				panic(err)
+			}
+
+			timing = instr.timing
 		}
 
-		fmt.Printf("%04o: %05o (%04x, %016b)", c.reg[regZ], val, val<<1, val)
+		time13Cycles += timing
+		time4Cycles += timing
+		time5Cycles += timing
 
-		// now increment the PC counter
-		c.reg[regZ]++
-
-		instr, address := decodeInstruction(val)
-		fmt.Printf(" {%-6s %05o}\n", instr.name, address)
-
-		if err := instr.execute(c, &instr, address); err != nil {
-			panic(err)
+		if time13Cycles >= interval10ms {
+			// time to increment TIME1 & TIME3
+			time13Cycles -= interval10ms
+			pendingSequences = append(pendingSequences, &usPINCTime1)
+			pendingSequences = append(pendingSequences, &usPINCTime3)
+		}
+		if time4Cycles >= interval10ms {
+			time4Cycles -= interval10ms
+			pendingSequences = append(pendingSequences, &usPINCTime4)
+		}
+		if time5Cycles >= interval10ms {
+			time5Cycles -= interval10ms
+			pendingSequences = append(pendingSequences, &usPINCTime5)
 		}
 	}
 }
