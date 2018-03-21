@@ -1,6 +1,8 @@
 package cpu
 
 import (
+	"math"
+
 	"github.com/Elsewhen-Studios/go-agc/memory"
 )
 
@@ -55,6 +57,28 @@ func (reg *registers) Set(r register, val uint16) {
 	// now that we've done all our special handling
 	// we can write the value into the register
 	reg[r] = val
+}
+
+// Increment increases the given register by one and returns
+// whether an overflow ocurred.
+func (reg *registers) Increment(r register) (overflow bool) {
+	var max uint16 = math.MaxUint16 >> 1
+	if r == regA || r == regL {
+		// these are the 16 bit registers
+		max = math.MaxUint16
+	}
+
+	val := reg[r]
+	if val >= max {
+		// register is going to overflow when we increment it
+		overflow = true
+		val = 0
+	} else {
+		val++
+	}
+
+	reg.Set(r, val)
+	return
 }
 
 type redirectedMemory struct {

@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"fmt"
-	"math"
 )
 
 type instruction struct {
@@ -156,11 +155,9 @@ var (
 		name:   "PINC TIME1",
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
-			if c.reg[regTIME1] == math.MaxUint16 {
-				c.reg.Set(regTIME1, 0)
+			if c.reg.Increment(regTIME1) {
 				return &usPINCTime2
 			}
-			c.reg.Set(regTIME1, c.reg[regTIME1]+1)
 			return nil
 		},
 	}
@@ -168,11 +165,7 @@ var (
 		name:   "PINC TIME2",
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
-			if c.reg[regTIME2] == math.MaxUint16 {
-				c.reg.Set(regTIME2, 0)
-			} else {
-				c.reg.Set(regTIME2, c.reg[regTIME2]+1)
-			}
+			c.reg.Increment(regTIME2)
 			return nil
 		},
 	}
@@ -180,11 +173,8 @@ var (
 		name:   "PINC TIME3",
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
-			if c.reg[regTIME3] == math.MaxUint16 {
-				c.reg.Set(regTIME3, 0)
+			if c.reg.Increment(regTIME3) {
 				// TODO: signal interrupt T3RUPT
-			} else {
-				c.reg.Set(regTIME3, c.reg[regTIME3]+1)
 			}
 			return nil
 		},
@@ -193,11 +183,8 @@ var (
 		name:   "PINC TIME4",
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
-			if c.reg[regTIME4] == math.MaxUint16 {
-				c.reg.Set(regTIME4, 0)
+			if c.reg.Increment(regTIME4) {
 				// TODO: signal interrupt T4RUPT
-			} else {
-				c.reg.Set(regTIME4, c.reg[regTIME4]+1)
 			}
 			return nil
 		},
@@ -206,11 +193,8 @@ var (
 		name:   "PINC TIME5",
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
-			if c.reg[regTIME5] == math.MaxUint16 {
-				c.reg.Set(regTIME5, 0)
+			if c.reg.Increment(regTIME5) {
 				// TODO: signal interrupt T5RUPT
-			} else {
-				c.reg.Set(regTIME5, c.reg[regTIME5]+1)
 			}
 			return nil
 		},
