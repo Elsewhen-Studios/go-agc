@@ -174,7 +174,7 @@ var (
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
 			if c.reg.Increment(regTIME3) {
-				// TODO: signal interrupt T3RUPT
+				c.interrupt(intT3RUPT)
 			}
 			return nil
 		},
@@ -184,7 +184,7 @@ var (
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
 			if c.reg.Increment(regTIME4) {
-				// TODO: signal interrupt T4RUPT
+				c.interrupt(intT4RUPT)
 			}
 			return nil
 		},
@@ -194,7 +194,7 @@ var (
 		timing: 1,
 		execute: func(c *CPU, seq *sequence) *sequence {
 			if c.reg.Increment(regTIME5) {
-				// TODO: signal interrupt T5RUPT
+				c.interrupt(intT5RUPT)
 			}
 			return nil
 		},

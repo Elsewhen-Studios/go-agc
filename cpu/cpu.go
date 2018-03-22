@@ -13,11 +13,22 @@ const (
 	interval5ms   = interval10ms / 2
 )
 
+type interrupt int
+
+const (
+	intBOOT interrupt = iota
+	intT6RUPT
+	intT5RUPT
+	intT3RUPT
+	intT4RUPT
+)
+
 type CPU struct {
 	mm redirectedMemory
 
-	reg     registers
-	intsOff bool
+	reg        registers
+	intsOff    bool
+	pendingInt *interrupt
 }
 
 func NewCPU(mem io.Reader) (*CPU, error) {
@@ -97,6 +108,20 @@ func (c *CPU) Run() {
 			time5Cycles -= interval10ms
 			pendingSequences = append(pendingSequences, &usPINCTime5)
 		}
+
+		if c.pendingInt != nil {
+			z := c.reg[regZ]
+			c.reg.Set(regZRUPT, z)
+			val, err := c.mm.Read(int(z))
+			if err != nil {
+				panic(err)
+			}
+			c.reg.Set(regBRUPT, val)
+			c.reg.Set(regZ, 04000+uint16(*c.pendingInt)*4)
+			fmt.Printf("INT! %04o - ZRUPT:%05o BRUPT:%05o\n", *c.pendingInt, z, val)
+			c.intsOff = true
+			c.pendingInt = nil
+		}
 	}
 }
 
@@ -113,4 +138,8 @@ func (c *CPU) overflow() int {
 		return -1
 	}
 	return 0
+}
+
+func (c *CPU) interrupt(i interrupt) {
+	c.pendingInt = &i
 }

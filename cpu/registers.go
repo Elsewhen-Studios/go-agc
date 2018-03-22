@@ -16,9 +16,21 @@ const (
 	regFB
 	regZ
 	regBB
-	regCYR   = 020
-	regTIME2 = 024
-	regTIME1 = iota
+	regZERO
+	regARUPT
+	regLRUPT
+	regQRUPT
+	regSAMPTIME1
+	regSAMPTIME2
+	regZRUPT
+	regBBRUPT
+	regBRUPT
+	regCYR
+	regSR
+	regCYL
+	regEDOP
+	regTIME2
+	regTIME1
 	regTIME3
 	regTIME4
 	regTIME5
