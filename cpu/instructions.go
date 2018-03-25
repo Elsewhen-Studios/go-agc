@@ -1,11 +1,14 @@
 package cpu
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type instruction struct {
 	name        string
 	code        uint16
 	addressMask uint16
+	timing      int
 	execute     func(*CPU, *instruction, uint16) error
 }
 
@@ -35,6 +38,7 @@ var instructionSet = []instruction{
 		name:        "RELINT",
 		code:        000003,
 		addressMask: maskNoAddress,
+		timing:      1,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = false
 			fmt.Println("    interrupts enabled")
@@ -44,6 +48,7 @@ var instructionSet = []instruction{
 	instruction{
 		name:        "INHINT",
 		code:        000004,
+		timing:      1,
 		addressMask: maskNoAddress,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = true
@@ -55,6 +60,7 @@ var instructionSet = []instruction{
 		name:        "TCF",
 		code:        010000,
 		addressMask: mask12BitAddress,
+		timing:      1,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			fmt.Printf("    jumping to %05o\n", addr)
 			c.reg.Set(regZ, addr)
@@ -65,6 +71,7 @@ var instructionSet = []instruction{
 		name:        "CA",
 		code:        030000,
 		addressMask: mask12BitAddress,
+		timing:      2,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			val, err := c.mm.Read(int(addr))
 			if err != nil {
@@ -88,6 +95,7 @@ var instructionSet = []instruction{
 		name:        "CS",
 		code:        040000,
 		addressMask: mask12BitAddress,
+		timing:      2,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			val, err := c.mm.Read(int(addr))
 			if err != nil {
@@ -111,6 +119,7 @@ var instructionSet = []instruction{
 		name:        "TS",
 		code:        054000,
 		addressMask: mask10BitAddress,
+		timing:      2,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			fmt.Printf("    Wrote %05o from A to %05o\n", c.reg[regA], addr)
 			if err := c.mm.Write(int(addr), c.reg[regA]); err != nil {
@@ -134,3 +143,60 @@ var instructionSet = []instruction{
 		},
 	},
 }
+
+type sequence struct {
+	name    string
+	timing  int
+	execute func(*CPU, *sequence) *sequence
+}
+
+var (
+	usPINCTime1 = sequence{
+		name:   "PINC TIME1",
+		timing: 1,
+		execute: func(c *CPU, seq *sequence) *sequence {
+			if c.reg.Increment(regTIME1) {
+				return &usPINCTime2
+			}
+			return nil
+		},
+	}
+	usPINCTime2 = sequence{
+		name:   "PINC TIME2",
+		timing: 1,
+		execute: func(c *CPU, seq *sequence) *sequence {
+			c.reg.Increment(regTIME2)
+			return nil
+		},
+	}
+	usPINCTime3 = sequence{
+		name:   "PINC TIME3",
+		timing: 1,
+		execute: func(c *CPU, seq *sequence) *sequence {
+			if c.reg.Increment(regTIME3) {
+				// TODO: signal interrupt T3RUPT
+			}
+			return nil
+		},
+	}
+	usPINCTime4 = sequence{
+		name:   "PINC TIME4",
+		timing: 1,
+		execute: func(c *CPU, seq *sequence) *sequence {
+			if c.reg.Increment(regTIME4) {
+				// TODO: signal interrupt T4RUPT
+			}
+			return nil
+		},
+	}
+	usPINCTime5 = sequence{
+		name:   "PINC TIME5",
+		timing: 1,
+		execute: func(c *CPU, seq *sequence) *sequence {
+			if c.reg.Increment(regTIME5) {
+				// TODO: signal interrupt T5RUPT
+			}
+			return nil
+		},
+	}
+)

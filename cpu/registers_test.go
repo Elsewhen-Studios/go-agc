@@ -1,6 +1,7 @@
 package cpu
 
 import (
+	"math"
 	"testing"
 
 	"github.com/Elsewhen-Studios/go-agc/memory"
@@ -81,6 +82,35 @@ func TestRegisterCYR(t *testing.T) {
 	assert.Equal(t, uint16(065252), reg[regCYR])
 	reg.Set(regCYR, 025252) // lsb is 0
 	assert.Equal(t, uint16(012525), reg[regCYR])
+}
+
+func TestRegisterIncrement(t *testing.T) {
+	scenarios := []struct {
+		name       string
+		r          register
+		start, end uint16
+		overflow   bool
+	}{
+		{"A - no overflow", regA, 0x7FFF, 0x8000, false},
+		{"A - overflow", regA, math.MaxUint16, 0, true},
+		{"TIME1 - no overflow", regTIME1, 0x7FFE, 0x7FFF, false},
+		{"TIME1 - overflow", regTIME1, 0x7FFF, 0, true},
+	}
+
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			// arrange
+			var reg registers
+			reg[scenario.r] = scenario.start
+
+			// act
+			overflow := reg.Increment(scenario.r)
+
+			// assert
+			assert.Equal(t, scenario.overflow, overflow, "overflow")
+			assert.Equal(t, scenario.end, reg[scenario.r], "end value")
+		})
+	}
 }
 
 func TestRedirectedMemory_ReadRegister(t *testing.T) {
