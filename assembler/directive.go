@@ -2,7 +2,6 @@ package assembler
 
 import (
 	"bufio"
-	"fmt"
 )
 
 type directiveHandler func(a *assembler, ts *bufio.Scanner, p *instructionParams) bool
@@ -25,7 +24,7 @@ func setLoc(a *assembler, ts *bufio.Scanner, p *instructionParams) bool {
 
 	newLoc := psudoAddress(val)
 	if !newLoc.isValid() {
-		p.logger.LogError(fmt.Sprintf("%v is not a valid psudo-address", p.operandToken))
+		p.logger.LogErrorf("%v is not a valid psudo-address", p.operandToken)
 		return false
 	}
 

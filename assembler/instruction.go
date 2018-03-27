@@ -1,9 +1,5 @@
 package assembler
 
-import (
-	"fmt"
-)
-
 type instEncoder func(p *instructionParams) (machineCode uint16, ok bool)
 
 type instruction struct {
@@ -98,12 +94,12 @@ func noopEncoder(p *instructionParams) (uint16, bool) {
 	//Replace with TCF [I+1] (010000 + (I+1)) if in Fixed
 	nextLoc, err := p.location.nextValid()
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("cannot implement %v at the end of fixed memory", p.instToken))
+		p.logger.LogErrorf("cannot implement %v at the end of fixed memory", p.instToken)
 		return 0, false
 	}
 
 	// if nextLoc.isBeginingOfSwitchableBank() {
-	// 	pl.LogWarning(fmt.Sprintf("%v at this location may require a bank switch", p.instToken))
+	// 	pl.LogWarningf("%v at this location may require a bank switch", p.instToken)
 	// }
 
 	return 010000 | nextLoc.asOperand(), true
