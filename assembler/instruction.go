@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-type instEncoder func(pl problemLogger, p *instructionParams) (machineCode uint16, ok bool)
+type instEncoder func(p *instructionParams) (machineCode uint16, ok bool)
 
 type instruction struct {
 	opCode          uint16
@@ -89,7 +89,7 @@ var extendedInstructions = map[string]instruction{
 	"MP": {opCode: 070000, validateOperand: requireAnyMemoryOperand},
 }
 
-func noopEncoder(pl problemLogger, p *instructionParams) (uint16, bool) {
+func noopEncoder(p *instructionParams) (uint16, bool) {
 	if p.location.isErasable() {
 		//Replace with CA A (030000) if in Erasable
 		return 030000, true
@@ -98,7 +98,7 @@ func noopEncoder(pl problemLogger, p *instructionParams) (uint16, bool) {
 	//Replace with TCF [I+1] (010000 + (I+1)) if in Fixed
 	nextLoc, err := p.location.nextValid()
 	if err != nil {
-		pl.LogError(fmt.Sprintf("cannot implement %v at the end of fixed memory", p.instToken))
+		p.logger.LogError(fmt.Sprintf("cannot implement %v at the end of fixed memory", p.instToken))
 		return 0, false
 	}
 

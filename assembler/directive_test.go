@@ -8,27 +8,27 @@ import (
 
 func Test_setLoc_valid(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	a.SetLocation(psudoAddress(04000))
+	a, pl := buildAssemblerLogger()
+	a.setLocation(psudoAddress(0xFFFF))
 
 	// act
-	ok := a.parseLine("SETLOC 2000")
+	ok := a.parseLine(pl, "SETLOC 2000")
 
 	// assert
 	assert.True(t, ok, "result")
 	assert.Zero(t, len(a.problems), "error count")
 
 	assert.NotNil(t, a.location, "location")
-	assert.EqualValues(t, 02000, int(*a.location), "location")
+	assert.EqualValues(t, 02000, int(a.location), "location")
 }
 
 func Test_setLoc_invalid(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	a.SetLocation(psudoAddress(04000))
+	a, pl := buildAssemblerLogger()
+	a.setLocation(psudoAddress(04000))
 
 	// act
-	ok := a.parseLine("SETLOC 14000")
+	ok := a.parseLine(pl, "SETLOC 14000")
 
 	// assert
 	assert.True(t, ok, "result")
@@ -37,16 +37,16 @@ func Test_setLoc_invalid(t *testing.T) {
 	}
 
 	assert.NotNil(t, a.location, "location")
-	assert.EqualValues(t, 04000, int(*a.location), "location")
+	assert.EqualValues(t, 04000, int(a.location), "location")
 }
 
 func Test_setLoc_noOperand(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	a.SetLocation(psudoAddress(04000))
+	a, pl := buildAssemblerLogger()
+	a.setLocation(psudoAddress(04000))
 
 	// act
-	ok := a.parseLine("SETLOC ")
+	ok := a.parseLine(pl, "SETLOC ")
 
 	// assert
 	assert.True(t, ok, "result")
@@ -55,17 +55,16 @@ func Test_setLoc_noOperand(t *testing.T) {
 	}
 
 	assert.NotNil(t, a.location, "location")
-	assert.EqualValues(t, 04000, int(*a.location), "location")
+	assert.EqualValues(t, 04000, int(a.location), "location")
 }
 
 func Test_setLoc_unresolvable(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	a.Init()
-	a.SetLocation(psudoAddress(04000))
+	a, pl := buildAssemblerLogger()
+	a.setLocation(psudoAddress(04000))
 
 	// act
-	ok := a.parseLine("SETLOC FOO")
+	ok := a.parseLine(pl, "SETLOC FOO")
 
 	// assert
 	assert.True(t, ok, "result")
@@ -74,5 +73,5 @@ func Test_setLoc_unresolvable(t *testing.T) {
 	}
 
 	assert.NotNil(t, a.location, "location")
-	assert.EqualValues(t, 04000, int(*a.location), "location")
+	assert.EqualValues(t, 04000, int(a.location), "location")
 }

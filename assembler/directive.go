@@ -13,24 +13,24 @@ var directives = map[string]directiveHandler{
 
 func setLoc(a *assembler, ts *bufio.Scanner, p *instructionParams) bool {
 	if err := requireOperand(ts, p); err != nil {
-		a.LogError(err.Error())
+		p.logger.LogError(err.Error())
 		return false
 	}
 
 	val, err := p.ResolveOperand()
 	if err != nil {
-		a.LogError(err.Error())
+		p.logger.LogError(err.Error())
 		return false
 	}
 
 	newLoc := psudoAddress(val)
 	if !newLoc.isValid() {
-		a.LogError(fmt.Sprintf("%v is not a valid psudo-address", p.operandToken))
+		p.logger.LogError(fmt.Sprintf("%v is not a valid psudo-address", p.operandToken))
 		return false
 	}
 
 	action := func(a *assembler) bool {
-		a.SetLocation(newLoc)
+		a.setLocation(newLoc)
 		return true
 	}
 	action(a)

@@ -8,11 +8,11 @@ import (
 
 func Test_noopEncoder_validErasable(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	p := &instructionParams{location: psudoAddress(0456)} //bank E1
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, location: psudoAddress(0456)} //bank E1
 
 	// act
-	mc, ok := noopEncoder(a, p)
+	mc, ok := noopEncoder(p)
 
 	// assert
 	assert.True(t, ok, "result")
@@ -23,11 +23,11 @@ func Test_noopEncoder_validErasable(t *testing.T) {
 
 func Test_noopEncoder_validFixed(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	p := &instructionParams{location: psudoAddress(022022)} //bank F5
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, location: psudoAddress(022022)} //bank F5
 
 	// act
-	mc, ok := noopEncoder(a, p)
+	mc, ok := noopEncoder(p)
 
 	// assert
 	assert.True(t, ok, "result")
@@ -38,11 +38,11 @@ func Test_noopEncoder_validFixed(t *testing.T) {
 
 func Test_noopEncoder_invalidEndofMemory(t *testing.T) {
 	// arrange
-	a := new(assembler)
-	p := &instructionParams{location: psudoAddress(0xAFFF)} //bank F31+SB
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, location: psudoAddress(0xAFFF)} //bank F31+SB
 
 	// act
-	_, ok := noopEncoder(a, p)
+	_, ok := noopEncoder(p)
 
 	// assert
 	assert.False(t, ok, "result")
