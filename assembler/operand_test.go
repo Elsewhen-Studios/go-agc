@@ -20,10 +20,11 @@ func Test_requireOperand_valid(t *testing.T) {
 	s := " \t" + op
 	ts := bufio.NewScanner(strings.NewReader(s))
 	ts.Split(bufio.ScanWords)
+	sp := newScannerPeeker(ts)
 	p := new(instructionParams)
 
 	// act
-	err := requireOperand(ts, p)
+	err := requireOperand(sp, p)
 
 	// assert
 	assert.NoError(t, err)
@@ -34,10 +35,11 @@ func Test_requireOperand_noOperand(t *testing.T) {
 	// arrange
 	ts := bufio.NewScanner(strings.NewReader(""))
 	ts.Split(bufio.ScanWords)
+	sp := newScannerPeeker(ts)
 	p := new(instructionParams)
 
 	// act
-	err := requireOperand(ts, p)
+	err := requireOperand(sp, p)
 
 	// assert
 	assert.Error(t, err)

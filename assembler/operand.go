@@ -1,17 +1,17 @@
 package assembler
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"unicode"
 )
 
-func requireOperand(ts *bufio.Scanner, p *instructionParams) error {
-	if !ts.Scan() {
+func requireOperand(sp *scannerPeeker, p *instructionParams) error {
+	t, ok := sp.Consume()
+	if !ok {
 		return errors.New("operand expected but none found")
 	}
-	p.operandToken = ts.Text()
+	p.operandToken = t
 	return nil
 }
 

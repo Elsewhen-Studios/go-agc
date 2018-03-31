@@ -12,7 +12,7 @@ type instruction struct {
 var standardInstructions = map[string]instruction{
 	"TC":     {opCode: 000000, validateOperand: validateTCOperand},
 	"RELINT": {opCode: 000003},
-	"INHNT":  {opCode: 000004},
+	"INHINT": {opCode: 000004},
 	"EXTEND": {opCode: 000006, setExtend: true},
 
 	"CCS": {opCode: 010000, validateOperand: requireErasable},
@@ -29,7 +29,7 @@ var standardInstructions = map[string]instruction{
 
 	"INDEX":  {opCode: 050000, validateOperand: validateINDEXOperand},
 	"RESUME": {opCode: 050017},
-	"DXH":    {opCode: 052000, validateOperand: requireErasable},
+	"DXCH":   {opCode: 052000, validateOperand: requireErasable},
 	"TS":     {opCode: 054000, validateOperand: requireErasable},
 	"XCH":    {opCode: 056000, validateOperand: requireErasable},
 
@@ -97,10 +97,6 @@ func noopEncoder(p *instructionParams) (uint16, bool) {
 		p.logger.LogErrorf("cannot implement %v at the end of fixed memory", p.instToken)
 		return 0, false
 	}
-
-	// if nextLoc.isBeginingOfSwitchableBank() {
-	// 	pl.LogWarningf("%v at this location may require a bank switch", p.instToken)
-	// }
 
 	return 010000 | nextLoc.asOperand(), true
 }

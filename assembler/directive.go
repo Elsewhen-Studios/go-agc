@@ -1,22 +1,24 @@
 package assembler
 
 import (
-	"bufio"
+	"strconv"
 )
 
-type directiveHandler func(a *assembler, ts *bufio.Scanner, p *instructionParams) bool
+type directiveHandler func(a *Assembler, sp *scannerPeeker, p *instructionParams) bool
 
 var directives = map[string]directiveHandler{
 	"SETLOC": setLoc,
+	//	"DEC":    dec,
+	"OCT": oct,
 }
 
-func setLoc(a *assembler, ts *bufio.Scanner, p *instructionParams) bool {
-	if err := requireOperand(ts, p); err != nil {
+func setLoc(a *Assembler, sp *scannerPeeker, p *instructionParams) bool {
+	if err := requireOperand(sp, p); err != nil {
 		p.logger.LogError(err.Error())
 		return false
 	}
 
-	val, err := p.ResolveOperand()
+	val, err := p.resolveOperand()
 	if err != nil {
 		p.logger.LogError(err.Error())
 		return false
@@ -28,11 +30,39 @@ func setLoc(a *assembler, ts *bufio.Scanner, p *instructionParams) bool {
 		return false
 	}
 
-	action := func(a *assembler) bool {
+	action := func(a *Assembler) bool {
 		a.setLocation(newLoc)
 		return true
 	}
 	action(a)
+	a.queueOperation(action)
+
+	return true
+}
+
+func oct(a *Assembler, sp *scannerPeeker, p *instructionParams) bool {
+	if err := requireOperand(sp, p); err != nil {
+		p.logger.LogError(err.Error())
+		return false
+	}
+
+	v, err := strconv.ParseUint(p.operandToken, 8, 16)
+	if err != nil {
+		p.logger.LogErrorf("unable to parse %v (%v)", p.operandToken, err.Error())
+		return false
+	}
+
+	if v > 077777 {
+		p.logger.LogErrorf("%v is out of range", p.operandToken)
+		return false
+	}
+
+	a.requireLocation(p.logger)
+	a.incLocation()
+
+	action := func(a *Assembler) bool {
+		return a.writeWordToImage(p.logger, uint16(v))
+	}
 	a.queueOperation(action)
 
 	return true

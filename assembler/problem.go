@@ -1,36 +1,41 @@
 package assembler
 
-import "fmt"
-
-type problemKind int
-
-const (
-	problemKindError   problemKind = iota
-	problemKindWarning problemKind = iota
-	problemKindInfo    problemKind = iota
+import (
+	"fmt"
 )
 
-type problem struct {
-	Kind    problemKind
+//ProblemKind is an enumeration for defining the severity of a Problem.
+type ProblemKind int
+
+//Problem severity includes Error, Warning, and Info.
+const (
+	ProblemKindError ProblemKind = iota
+	ProblemKindWarning
+	ProblemKindInfo
+)
+
+//Problem contains debugging information for issues encountered during assembly.
+type Problem struct {
+	Kind    ProblemKind
 	File    string
 	Line    int
 	Message string
 }
 
-func (k problemKind) String() string {
+func (k ProblemKind) String() string {
 	switch k {
-	case problemKindError:
+	case ProblemKindError:
 		return "Error"
-	case problemKindWarning:
+	case ProblemKindWarning:
 		return "Warning"
-	case problemKindInfo:
+	case ProblemKindInfo:
 		return "Info"
 	default:
 		return "Unknown"
 	}
 }
 
-func (p problem) String() string {
+func (p Problem) String() string {
 	return fmt.Sprintf("%v: %v (%v, %v)", p.Kind, p.Message, p.File, p.Line)
 }
 
@@ -44,13 +49,13 @@ type problemLogger interface {
 }
 
 type assemblerLogger struct {
-	asm      *assembler
+	asm      *Assembler
 	fileName string
 	lineNum  int
 }
 
 func (al *assemblerLogger) LogError(msg string) {
-	al.asm.problems = append(al.asm.problems, problem{Kind: problemKindError, File: al.fileName, Line: al.lineNum, Message: msg})
+	al.asm.Problems = append(al.asm.Problems, Problem{Kind: ProblemKindError, File: al.fileName, Line: al.lineNum, Message: msg})
 	al.asm.errorCount++
 }
 
@@ -59,7 +64,7 @@ func (al *assemblerLogger) LogErrorf(format string, a ...interface{}) {
 }
 
 func (al *assemblerLogger) LogWarning(msg string) {
-	al.asm.problems = append(al.asm.problems, problem{Kind: problemKindWarning, File: al.fileName, Line: al.lineNum, Message: msg})
+	al.asm.Problems = append(al.asm.Problems, Problem{Kind: ProblemKindWarning, File: al.fileName, Line: al.lineNum, Message: msg})
 }
 
 func (al *assemblerLogger) LogWarningf(format string, a ...interface{}) {
@@ -67,7 +72,7 @@ func (al *assemblerLogger) LogWarningf(format string, a ...interface{}) {
 }
 
 func (al *assemblerLogger) LogInfo(msg string) {
-	al.asm.problems = append(al.asm.problems, problem{Kind: problemKindInfo, File: al.fileName, Line: al.lineNum, Message: msg})
+	al.asm.Problems = append(al.asm.Problems, Problem{Kind: ProblemKindInfo, File: al.fileName, Line: al.lineNum, Message: msg})
 }
 
 func (al *assemblerLogger) LogInfof(format string, a ...interface{}) {
