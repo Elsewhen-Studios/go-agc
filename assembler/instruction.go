@@ -18,7 +18,7 @@ var standardInstructions = map[string]instruction{
 	"CCS": {opCode: 010000, validateOperand: requireErasable},
 	"TCF": {opCode: 010000, validateOperand: requireFixed},
 
-	"DAS":  {opCode: 020000, validateOperand: requireErasable},
+	"DAS":  {opCode: 020001, validateOperand: requireDoubleErasable},
 	"LXCH": {opCode: 022000, validateOperand: requireErasable},
 	"INCR": {opCode: 024000, validateOperand: requireErasable},
 	"ADS":  {opCode: 026000, validateOperand: requireErasable},
@@ -29,7 +29,7 @@ var standardInstructions = map[string]instruction{
 
 	"INDEX":  {opCode: 050000, validateOperand: validateINDEXOperand},
 	"RESUME": {opCode: 050017},
-	"DXCH":   {opCode: 052000, validateOperand: requireErasable},
+	"DXCH":   {opCode: 052001, validateOperand: requireDoubleErasable},
 	"TS":     {opCode: 054000, validateOperand: requireErasable},
 	"XCH":    {opCode: 056000, validateOperand: requireErasable},
 
@@ -50,9 +50,6 @@ var standardInstructions = map[string]instruction{
 	"OVSK":   {opCode: 054000},       //Replace with TS A
 	"TCAA":   {opCode: 054005},       //Replace with TS Z
 	"DOUBLE": {opCode: 060000},       //Replace with AD A
-	"ZQ":     {opCode: 022007},       //Replace with QXCH
-	"DCOM":   {opCode: 040001},       //Replace with DCS A
-	"SQUARE": {opCode: 070000},       //Replace with MP A
 }
 
 var extendedInstructions = map[string]instruction{
@@ -73,9 +70,9 @@ var extendedInstructions = map[string]instruction{
 	"AUG":  {opCode: 024000, validateOperand: requireErasable},
 	"DIM":  {opCode: 026000, validateOperand: requireErasable},
 
-	"DCA": {opCode: 030000, validateOperand: requireAnyMemoryOperand},
+	"DCA": {opCode: 030001, validateOperand: requireDoubleAnyMemoryOperand},
 
-	"DCS": {opCode: 040000, validateOperand: requireAnyMemoryOperand},
+	"DCS": {opCode: 040001, validateOperand: requireDoubleAnyMemoryOperand},
 
 	"INDEX": {opCode: 050000, validateOperand: requireAnyMemoryOperand, setExtend: true},
 
@@ -83,6 +80,32 @@ var extendedInstructions = map[string]instruction{
 	"BZMF": {opCode: 060000, validateOperand: requireFixed},
 
 	"MP": {opCode: 070000, validateOperand: requireAnyMemoryOperand},
+
+	//Implied Address codes
+	"ZQ":     {opCode: 022007}, //Replace with QXCH
+	"DCOM":   {opCode: 040001}, //Replace with DCS A
+	"SQUARE": {opCode: 070000}, //Replace with MP A
+}
+
+func (i *instruction) encode(p *instructionParams) (uint16, bool) {
+	var op uint16
+	if i.validateOperand != nil {
+		val, err := p.resolveOperand()
+		if err != nil {
+			p.logger.LogError(err.Error())
+			return 0, false
+		}
+		if ok := i.validateOperand(val, p); !ok {
+			return 0, false
+		}
+		op = val
+	}
+
+	if i.encoder != nil {
+		return i.encoder(p)
+	}
+
+	return i.opCode + op, true
 }
 
 func noopEncoder(p *instructionParams) (uint16, bool) {
@@ -99,4 +122,24 @@ func noopEncoder(p *instructionParams) (uint16, bool) {
 	}
 
 	return 010000 | nextLoc.asOperand(), true
+}
+
+func findInstruction(p *instructionParams, name string) *instruction {
+	if !p.extended {
+		if inst, ok := standardInstructions[name]; ok {
+			return &inst
+		} else if inst, ok := extendedInstructions[name]; ok {
+			p.logger.LogErrorf("%v must be preceeded by an EXTEND instruction.", p.instToken)
+			return &inst
+		}
+	} else {
+		if inst, ok := extendedInstructions[name]; ok {
+			return &inst
+		} else if inst, ok := standardInstructions[name]; ok {
+			p.logger.LogErrorf("%v is not an EXTEND instruction.", p.instToken)
+			return &inst
+		}
+	}
+
+	return nil
 }

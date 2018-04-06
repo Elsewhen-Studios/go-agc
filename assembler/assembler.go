@@ -281,26 +281,6 @@ func demandEndOfLine(pl problemLogger, sp *scannerPeeker) {
 	}
 }
 
-func findInstruction(p *instructionParams, name string) *instruction {
-	if !p.extended {
-		if inst, ok := standardInstructions[name]; ok {
-			return &inst
-		} else if inst, ok := extendedInstructions[name]; ok {
-			p.logger.LogErrorf("%v must be preceeded by an EXTEND instruction.", p.instToken)
-			return &inst
-		}
-	} else {
-		if inst, ok := extendedInstructions[name]; ok {
-			return &inst
-		} else if inst, ok := standardInstructions[name]; ok {
-			p.logger.LogErrorf("%v is not an EXTEND instruction.", p.instToken)
-			return &inst
-		}
-	}
-
-	return nil
-}
-
 func getInstOperation(sp *scannerPeeker, p *instructionParams, i *instruction) operationFinalizer {
 	if i.validateOperand != nil {
 		if err := requireOperand(sp, p); err != nil {
@@ -310,34 +290,12 @@ func getInstOperation(sp *scannerPeeker, p *instructionParams, i *instruction) o
 	}
 
 	return func(a *Assembler) bool {
-		var op uint16
-		if i.validateOperand != nil {
-			val, err := p.resolveOperand()
-			if err != nil {
-				p.logger.LogError(err.Error())
-				return false
-			}
-			if err := i.validateOperand(val, p); err != nil {
-				p.logger.LogError(err.Error())
-				return false
-			}
-			op = val
+		mc, ok := i.encode(p)
+		if !ok {
+			return false
 		}
 
-		var machineCode uint16
-		if i.encoder != nil {
-			//use custom encoder
-			mc, ok := i.encoder(p)
-			if !ok {
-				return false
-			}
-			machineCode = mc
-		} else {
-			//use default encoder
-			machineCode = i.opCode | op
-		}
-
-		return a.writeWordToImage(p.logger, machineCode)
+		return a.writeWordToImage(p.logger, mc)
 	}
 }
 

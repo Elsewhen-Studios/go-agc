@@ -2,7 +2,6 @@ package assembler
 
 import (
 	"errors"
-	"fmt"
 	"unicode"
 )
 
@@ -21,6 +20,16 @@ const (
 	octalToken = tokenKind(iota)
 	decimalToken
 	symbolToken
+)
+
+const (
+	lastChannel = 00777
+
+	lastUnswitchedErasableAddress = 01377
+	lastErasableAddress           = 01777
+
+	lastswitchedFixedAddress = 03777
+	lastFixedAddress         = 07777
 )
 
 func clasifyToken(token string) tokenKind {
@@ -43,50 +52,84 @@ func clasifyToken(token string) tokenKind {
 	return octalToken
 }
 
-type operandValidator func(val uint16, p *instructionParams) error
+type operandValidator func(val uint16, p *instructionParams) bool
 
-func validateTCOperand(val uint16, p *instructionParams) error {
-	if err := requireAnyMemoryOperand(val, p); err != nil {
-		return err
+func validateTCOperand(val uint16, p *instructionParams) bool {
+	if ok := requireAnyMemoryOperand(val, p); !ok {
+		return ok
 	} else if val == 00003 || val == 00004 || val == 00006 {
-		return fmt.Errorf("%v is not a valid operand for %v", p.operandToken, p.instToken)
+		p.logger.LogErrorf("%v is not a valid operand for %v", p.operandToken, p.instToken)
+		return false
 	}
-	return nil
+	return true
 }
 
-func validateINDEXOperand(val uint16, p *instructionParams) error {
-	if err := requireErasable(val, p); err != nil {
-		return err
+func validateINDEXOperand(val uint16, p *instructionParams) bool {
+	if ok := requireErasable(val, p); !ok {
+		return ok
 	} else if val == 00017 {
-		return fmt.Errorf("%v is not a valid operand for %v", p.operandToken, p.instToken)
+		p.logger.LogErrorf("%v is not a valid operand for %v", p.operandToken, p.instToken)
+		return false
 	}
-	return nil
+	return true
 }
 
-func requireAnyMemoryOperand(val uint16, p *instructionParams) error {
-	if val > 07777 {
-		return fmt.Errorf("%v is not a valid memory address", p.operandToken)
+func requireAnyMemoryOperand(val uint16, p *instructionParams) bool {
+	if val > lastFixedAddress {
+		p.logger.LogErrorf("%v is not a valid memory address", p.operandToken)
+		return false
 	}
-	return nil
+	return true
 }
 
-func requireErasable(val uint16, p *instructionParams) error {
-	if val > 01777 {
-		return fmt.Errorf("%v is not a valid erasable memory address", p.operandToken)
+func requireDoubleAnyMemoryOperand(val uint16, p *instructionParams) bool {
+	if val > lastFixedAddress-1 {
+		p.logger.LogErrorf("%v is not a valid double precision memory address", p.operandToken)
+		return false
 	}
-	return nil
+	if val == lastswitchedFixedAddress {
+		p.logger.LogWarningf("double precision at %v crosses the switchable/unswitchable fixed memory boundary", p.operandToken)
+	}
+	if val == lastErasableAddress {
+		p.logger.LogWarningf("double precision at %v crosses the erasable/fixed memory boundary", p.operandToken)
+	}
+	if val == lastUnswitchedErasableAddress {
+		p.logger.LogWarningf("double precision at %v crosses the unswitchable/switchable erasable memory boundary", p.operandToken)
+	}
+	return true
 }
 
-func requireChannel(val uint16, p *instructionParams) error {
-	if val > 00777 {
-		return fmt.Errorf("%v is not a valid I/O channel address", p.operandToken)
+func requireErasable(val uint16, p *instructionParams) bool {
+	if val > lastErasableAddress {
+		p.logger.LogErrorf("%v is not a valid erasable memory address", p.operandToken)
+		return false
 	}
-	return nil
+	return true
 }
 
-func requireFixed(val uint16, p *instructionParams) error {
-	if val < 02000 || val > 07777 {
-		return fmt.Errorf("%v is not a valid fixed memory address", p.operandToken)
+func requireDoubleErasable(val uint16, p *instructionParams) bool {
+	if val > lastErasableAddress-1 {
+		p.logger.LogErrorf("%v is not a valid double precision erasable memory address", p.operandToken)
+		return false
 	}
-	return nil
+	if val == lastUnswitchedErasableAddress {
+		p.logger.LogWarningf("double precision at %v crosses the unswitchable/switchable erasable memory boundary", p.operandToken)
+	}
+	return true
+}
+
+func requireChannel(val uint16, p *instructionParams) bool {
+	if val > lastChannel {
+		p.logger.LogErrorf("%v is not a valid I/O channel address", p.operandToken)
+		return false
+	}
+	return true
+}
+
+func requireFixed(val uint16, p *instructionParams) bool {
+	if val < 02000 || val > lastFixedAddress {
+		p.logger.LogErrorf("%v is not a valid fixed memory address", p.operandToken)
+		return false
+	}
+	return true
 }
