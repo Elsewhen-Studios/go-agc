@@ -21,7 +21,7 @@ func decodeInstruction(machineCode uint16) (instruction, uint16) {
 	}
 
 	if bestMatch == nil {
-		panic("bad instruction")
+		panic(fmt.Sprintf("bad instruction: %05o", machineCode))
 	}
 
 	return *bestMatch, machineCode & bestMatch.addressMask
