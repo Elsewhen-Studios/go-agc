@@ -52,8 +52,9 @@ func (c *CPU) Run() {
 			&usPINCTime5: NewTimer("TIME5", interval10ms, -interval5ms),
 		}
 	)
-	logc := make(chan logEvent, 1000)
-	go processLogEvents(logc)
+	log := NewLogger(1000)
+	go log.Process()
+	defer log.Stop()
 
 	for {
 		var timing int
@@ -63,6 +64,7 @@ func (c *CPU) Run() {
 			seq := pendingSequences[len(pendingSequences)-1]
 			pendingSequences = pendingSequences[:len(pendingSequences)-1]
 
+			log.Log(USequenceEvent{seq: seq})
 			if subSeq := seq.execute(c, seq); subSeq != nil {
 				pendingSequences = append(pendingSequences, subSeq)
 			}
@@ -79,12 +81,12 @@ func (c *CPU) Run() {
 			c.reg[regZ]++
 
 			instr, address := decodeInstruction(val)
-			logc <- logEvent{
+			log.Log(InstructionEvent{
 				z:       z,
 				code:    val,
 				instr:   &instr,
 				address: address,
-			}
+			})
 
 			if err := instr.execute(c, &instr, address); err != nil {
 				panic(err)
@@ -99,7 +101,7 @@ func (c *CPU) Run() {
 				// timer rolled over, queue up
 				// the unprogrammed sequence
 				pendingSequences = append(pendingSequences, useq)
-				logc <- logEvent{tmr: tmr.n}
+				log.Log(TimerEvent{name: tmr.n})
 			}
 		}
 
@@ -136,18 +138,4 @@ func (c *CPU) overflow() int {
 
 func (c *CPU) interrupt(i interrupt) {
 	c.pendingInt = &i
-}
-
-type logEvent struct {
-	z       uint16
-	code    uint16
-	instr   *instruction
-	address uint16
-}
-
-func processLogEvents(logc chan logEvent) {
-	for e := range logc {
-		fmt.Printf("%04o: %05o (%04x, %016b)", e.z, e.code, e.code<<1, e.code)
-		fmt.Printf(" {%-6s %05o}\n", e.instr.name, e.address)
-	}
 }
