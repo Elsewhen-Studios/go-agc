@@ -9,6 +9,27 @@ type instruction struct {
 	encoder         instEncoder
 }
 
+func (i *instruction) encode(p *instructionParams) (uint16, bool) {
+	var op uint16
+	if i.validateOperand != nil {
+		val, err := p.resolveOperand()
+		if err != nil {
+			p.logger.LogError(err.Error())
+			return 0, false
+		}
+		if ok := i.validateOperand(val, p); !ok {
+			return 0, false
+		}
+		op = val
+	}
+
+	if i.encoder != nil {
+		return i.encoder(p)
+	}
+
+	return i.opCode + op, true
+}
+
 var standardInstructions = map[string]instruction{
 	"TC":     {opCode: 000000, validateOperand: validateTCOperand},
 	"RELINT": {opCode: 000003},
@@ -87,25 +108,38 @@ var extendedInstructions = map[string]instruction{
 	"SQUARE": {opCode: 070000}, //Replace with MP A
 }
 
-func (i *instruction) encode(p *instructionParams) (uint16, bool) {
-	var op uint16
-	if i.validateOperand != nil {
-		val, err := p.resolveOperand()
-		if err != nil {
-			p.logger.LogError(err.Error())
-			return 0, false
-		}
-		if ok := i.validateOperand(val, p); !ok {
-			return 0, false
-		}
-		op = val
+var instAliases = map[string]string{
+	"TCR": "TC",
+	"CAF": "CA",
+	"CAE": "CA",
+	"NDX": "INDEX",
+	"MSK": "MASK",
+}
+
+func findInstruction(p *instructionParams) *instruction {
+	instName := p.instToken
+
+	if alias, ok := instAliases[instName]; ok {
+		instName = alias
 	}
 
-	if i.encoder != nil {
-		return i.encoder(p)
+	if !p.extended {
+		if inst, ok := standardInstructions[instName]; ok {
+			return &inst
+		} else if inst, ok := extendedInstructions[instName]; ok {
+			p.logger.LogErrorf("%v must be preceeded by an EXTEND instruction.", p.instToken)
+			return &inst
+		}
+	} else {
+		if inst, ok := extendedInstructions[instName]; ok {
+			return &inst
+		} else if inst, ok := standardInstructions[instName]; ok {
+			p.logger.LogErrorf("%v is not an EXTEND instruction.", p.instToken)
+			return &inst
+		}
 	}
 
-	return i.opCode + op, true
+	return nil
 }
 
 func noopEncoder(p *instructionParams) (uint16, bool) {
@@ -122,24 +156,4 @@ func noopEncoder(p *instructionParams) (uint16, bool) {
 	}
 
 	return 010000 | nextLoc.asOperand(), true
-}
-
-func findInstruction(p *instructionParams, name string) *instruction {
-	if !p.extended {
-		if inst, ok := standardInstructions[name]; ok {
-			return &inst
-		} else if inst, ok := extendedInstructions[name]; ok {
-			p.logger.LogErrorf("%v must be preceeded by an EXTEND instruction.", p.instToken)
-			return &inst
-		}
-	} else {
-		if inst, ok := extendedInstructions[name]; ok {
-			return &inst
-		} else if inst, ok := standardInstructions[name]; ok {
-			p.logger.LogErrorf("%v is not an EXTEND instruction.", p.instToken)
-			return &inst
-		}
-	}
-
-	return nil
 }

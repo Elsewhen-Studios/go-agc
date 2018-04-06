@@ -30,30 +30,6 @@ func Test_assembler_ErrorCount(t *testing.T) {
 	assert.EqualValues(t, a.errorCount, result)
 }
 
-func Test_aliases(t *testing.T) {
-	// arrange
-
-	// act
-
-	// assert
-	for k, v := range aliases {
-		match := false
-
-		if _, ok := standardInstructions[v]; ok {
-			match = true
-		} else if _, ok := extendedInstructions[v]; ok {
-			match = true
-		}
-
-		if _, ok := directives[v]; ok {
-			assert.Falsef(t, match, "ambiguous alias definition (%v=>%v)", k, v)
-			match = true
-		}
-
-		assert.Truef(t, match, "un-used alias definition (%v=>%v)", k, v)
-	}
-}
-
 func Test_instructionParams_resolveOperand_validOctal(t *testing.T) {
 	// arrange
 	value := uint16(01357)
@@ -312,75 +288,6 @@ func Test_bankTransition(t *testing.T) {
 	if assert.Len(t, a.Problems, 1, "problem count") {
 		assert.EqualValues(t, ProblemKindWarning, a.Problems[0].Kind, "problem kind")
 	}
-}
-
-func Test_findInstruction_standard(t *testing.T) {
-	// arrange
-	a, pl := buildAssemblerLogger()
-	p := &instructionParams{logger: pl, extended: false}
-
-	// act
-	inst := findInstruction(p, "CA")
-
-	// assert
-	assert.NotNil(t, inst, "return value")
-	assert.Len(t, a.Problems, 0, "problem count")
-}
-
-func Test_findInstruction_standardWhileExtended(t *testing.T) {
-	// arrange
-	a, pl := buildAssemblerLogger()
-	p := &instructionParams{logger: pl, extended: true}
-
-	// act
-	inst := findInstruction(p, "CA")
-
-	// assert
-	assert.NotNil(t, inst, "return value")
-	if assert.Len(t, a.Problems, 1, "problem count") {
-		assert.EqualValues(t, ProblemKindError, a.Problems[0].Kind, "problem kind")
-	}
-}
-
-func Test_findInstruction_extended(t *testing.T) {
-	// arrange
-	a, pl := buildAssemblerLogger()
-	p := &instructionParams{logger: pl, extended: true}
-
-	// act
-	inst := findInstruction(p, "DCA")
-
-	// assert
-	assert.NotNil(t, inst, "return value")
-	assert.Len(t, a.Problems, 0, "problem count")
-}
-
-func Test_findInstruction_extendedWhileStandard(t *testing.T) {
-	// arrange
-	a, pl := buildAssemblerLogger()
-	p := &instructionParams{logger: pl, extended: false}
-
-	// act
-	inst := findInstruction(p, "DCA")
-
-	// assert
-	assert.NotNil(t, inst, "return value")
-	if assert.Len(t, a.Problems, 1, "problem count") {
-		assert.EqualValues(t, ProblemKindError, a.Problems[0].Kind, "problem kind")
-	}
-}
-
-func Test_findInstruction_notFound(t *testing.T) {
-	// arrange
-	a, pl := buildAssemblerLogger()
-	p := &instructionParams{logger: pl, extended: false}
-
-	// act
-	inst := findInstruction(p, "FOO")
-
-	// assert
-	assert.Nil(t, inst, "return value")
-	assert.Len(t, a.Problems, 0, "problem count")
 }
 
 func Test_trailingCommentWithSpace(t *testing.T) {

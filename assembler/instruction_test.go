@@ -8,6 +8,99 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Test_instAliases(t *testing.T) {
+	// arrange
+
+	// act
+
+	// assert
+	for k, v := range instAliases {
+		match := false
+
+		if _, ok := standardInstructions[v]; ok {
+			match = true
+		} else if _, ok := extendedInstructions[v]; ok {
+			match = true
+		}
+
+		if _, ok := directives[v]; ok {
+			assert.Falsef(t, match, "ambiguous alias definition (%v=>%v)", k, v)
+			match = true
+		}
+
+		assert.Truef(t, match, "un-used alias definition (%v=>%v)", k, v)
+	}
+}
+
+func Test_findInstruction_standard(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, extended: false, instToken: "CA"}
+
+	// act
+	inst := findInstruction(p)
+
+	// assert
+	assert.NotNil(t, inst, "return value")
+	assert.Len(t, a.Problems, 0, "problem count")
+}
+
+func Test_findInstruction_standardWhileExtended(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, extended: true, instToken: "CA"}
+
+	// act
+	inst := findInstruction(p)
+
+	// assert
+	assert.NotNil(t, inst, "return value")
+	if assert.Len(t, a.Problems, 1, "problem count") {
+		assert.EqualValues(t, ProblemKindError, a.Problems[0].Kind, "problem kind")
+	}
+}
+
+func Test_findInstruction_extended(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, extended: true, instToken: "DCA"}
+
+	// act
+	inst := findInstruction(p)
+
+	// assert
+	assert.NotNil(t, inst, "return value")
+	assert.Len(t, a.Problems, 0, "problem count")
+}
+
+func Test_findInstruction_extendedWhileStandard(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, extended: false, instToken: "DCA"}
+
+	// act
+	inst := findInstruction(p)
+
+	// assert
+	assert.NotNil(t, inst, "return value")
+	if assert.Len(t, a.Problems, 1, "problem count") {
+		assert.EqualValues(t, ProblemKindError, a.Problems[0].Kind, "problem kind")
+	}
+}
+
+func Test_findInstruction_notFound(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	p := &instructionParams{logger: pl, extended: false, instToken: "FOO"}
+
+	// act
+	inst := findInstruction(p)
+
+	// assert
+	assert.Nil(t, inst, "return value")
+	assert.Len(t, a.Problems, 0, "problem count")
+}
+
 func Test_noopEncoder_validErasable(t *testing.T) {
 	// arrange
 	a, pl := buildAssemblerLogger()
@@ -58,7 +151,7 @@ func Test_DXCH_encoding(t *testing.T) {
 	a, pl := buildAssemblerLogger()
 	op := 00060
 	p := &instructionParams{logger: pl, resolver: a, extended: false, instToken: "DXCH", operandToken: fmt.Sprintf("%#o", op)}
-	i := findInstruction(p, p.instToken)
+	i := findInstruction(p)
 	require.NotNil(t, i, "instruction lookup")
 	require.Len(t, a.Problems, 0, "lookup problem count")
 
@@ -152,7 +245,7 @@ func Test_encode(t *testing.T) {
 
 	for _, test := range tests {
 		p := &instructionParams{logger: pl, resolver: a, extended: test.ext, instToken: test.inst, operandToken: fmt.Sprintf("%#o", test.op)}
-		i := findInstruction(p, p.instToken)
+		i := findInstruction(p)
 		require.NotNilf(t, i, "instruction lookup (%v)", test.inst)
 		probCount := len(a.Problems)
 
@@ -179,7 +272,7 @@ func Test_encode_noop(t *testing.T) {
 
 	for _, test := range tests {
 		p := &instructionParams{logger: pl, resolver: a, extended: false, instToken: "NOOP", location: test.loc}
-		i := findInstruction(p, p.instToken)
+		i := findInstruction(p)
 		require.NotNilf(t, i, "instruction lookup (%#o)", test.loc)
 		probCount := len(a.Problems)
 

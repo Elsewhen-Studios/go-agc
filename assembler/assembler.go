@@ -11,14 +11,6 @@ import (
 	"strings"
 )
 
-var aliases = map[string]string{
-	"TCR": "TC",
-	"CAF": "CA",
-	"CAE": "CA",
-	"NDX": "INDEX",
-	"MSK": "MASK",
-}
-
 type symbolResolver interface {
 	resolveSymbol(s string) (uint16, bool)
 }
@@ -245,21 +237,15 @@ func (a *Assembler) tryToken(pl problemLogger, token string, sp *scannerPeeker) 
 		extended:  a.extended,
 		instToken: token,
 	}
-	instName := p.instToken
-
-	//Check for alias
-	if alias, ok := aliases[instName]; ok {
-		instName = alias
-	}
 
 	//Directive
-	if dh, ok := directives[instName]; ok {
+	if dh, ok := directives[p.instToken]; ok {
 		dh(a, sp, p)
 		return true
 	}
 
 	//Instruction
-	if inst := findInstruction(p, instName); inst != nil {
+	if inst := findInstruction(p); inst != nil {
 		p.location = a.requireLocation(p.logger)
 
 		a.queueOperation(getInstOperation(sp, p, inst))
