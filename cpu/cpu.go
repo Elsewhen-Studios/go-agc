@@ -44,10 +44,13 @@ func NewCPU(mem *memory.Main) (*CPU, error) {
 func (c *CPU) Run() {
 	c.reg.Set(regZ, 04000)
 	var (
-		time13Cycles     int
-		time4Cycles      = -interval7_5ms
-		time5Cycles      = -interval5ms
 		pendingSequences []*sequence
+		timers           = map[*sequence]*timer{
+			&usPINCTime1: NewTimer("TIME1", interval10ms, 0),
+			&usPINCTime3: NewTimer("TIME3", interval10ms, 0),
+			&usPINCTime4: NewTimer("TIME4", interval10ms, -interval7_5ms),
+			&usPINCTime5: NewTimer("TIME5", interval10ms, -interval5ms),
+		}
 	)
 	logc := make(chan logEvent, 1000)
 	go processLogEvents(logc)
@@ -90,22 +93,14 @@ func (c *CPU) Run() {
 			timing = instr.timing
 		}
 
-		time13Cycles += timing
-		time4Cycles += timing
-		time5Cycles += timing
-
-		if time13Cycles >= interval10ms {
-			time13Cycles -= interval10ms
-			pendingSequences = append(pendingSequences, &usPINCTime1)
-			pendingSequences = append(pendingSequences, &usPINCTime3)
-		}
-		if time4Cycles >= interval10ms {
-			time4Cycles -= interval10ms
-			pendingSequences = append(pendingSequences, &usPINCTime4)
-		}
-		if time5Cycles >= interval10ms {
-			time5Cycles -= interval10ms
-			pendingSequences = append(pendingSequences, &usPINCTime5)
+		// increment our timers by the amount of cycles
+		for useq, tmr := range timers {
+			if tmr.Inc(timing) {
+				// timer rolled over, queue up
+				// the unprogrammed sequence
+				pendingSequences = append(pendingSequences, useq)
+				logc <- logEvent{tmr: tmr.n}
+			}
 		}
 
 		if c.pendingInt != nil {
