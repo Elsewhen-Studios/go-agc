@@ -2,7 +2,6 @@ package cpu
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/Elsewhen-Studios/go-agc/memory"
 )
@@ -31,18 +30,14 @@ type CPU struct {
 	pendingInt *interrupt
 }
 
-func NewCPU(mem io.Reader) (*CPU, error) {
-	mm := new(memory.Main)
-	if mem != nil {
-		l := &memory.Loader{MM: mm}
-		if _, err := io.Copy(l, mem); err != nil {
-			return nil, err
-		}
+func NewCPU(mem *memory.Main) (*CPU, error) {
+	if mem == nil {
+		mem = new(memory.Main)
 	}
 
 	var cpu CPU
 	cpu.mm.reg = &cpu.reg
-	cpu.mm.mm = mm
+	cpu.mm.mm = mem
 	return &cpu, nil
 }
 
@@ -76,7 +71,6 @@ func (c *CPU) Run() {
 			if err != nil {
 				panic(err)
 			}
-
 
 			// now increment the PC counter
 			c.reg[regZ]++

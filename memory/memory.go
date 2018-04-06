@@ -105,7 +105,8 @@ func (mm *Main) selectBank(address int) (bank, error) {
 
 // Loader is used to stream data into a Main instance.
 type Loader struct {
-	MM *Main
+	MM          *Main
+	LeftAligned bool
 
 	leftOver *byte
 
@@ -155,7 +156,10 @@ func (l *Loader) Write(p []byte) (n int, err error) {
 		}
 
 		val := binary.BigEndian.Uint16(p[i:])
-		l.cb[l.pos] = val >> 1
+		if l.LeftAligned {
+			val >>= 1
+		}
+		l.cb[l.pos] = val
 		l.pos++
 	}
 

@@ -207,29 +207,45 @@ func assertErasableBank(t *testing.T, bidx int, b ebank, baseValue uint16) {
 }
 
 func TestLoader(t *testing.T) {
-	// arrange
-	var mm Main
-	l := &Loader{MM: &mm}
-
-	buf := new(bytes.Buffer)
-	for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
-		for i := 0; i < fixedBankSize; i++ {
-			buf.Write([]byte{0x1E, byte(b) << 1})
-		}
+	scenarios := []struct {
+		name        string
+		leftAligned bool
+	}{
+		{"LeftAligned", true},
+		{"RightAligned", false},
 	}
-	expectedLen := int64(buf.Len())
 
-	// act
-	n, err := io.Copy(l, buf)
+	for _, scenario := range scenarios {
+		t.Run(scenario.name, func(t *testing.T) {
+			// arrange
+			var mm Main
+			l := &Loader{MM: &mm, LeftAligned: scenario.leftAligned}
 
-	// assert
-	assert.Equal(t, expectedLen, n, "bytes copied")
-	assert.NoError(t, err, "io.Copy error")
+			buf := new(bytes.Buffer)
+			for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
+				for i := 0; i < fixedBankSize; i++ {
+					if scenario.leftAligned {
+						buf.Write([]byte{0x1E, byte(b) << 1})
+					} else {
+						buf.Write([]byte{0x0F, byte(b)})
+					}
+				}
+			}
+			expectedLen := int64(buf.Len())
 
-	for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
-		for i := 0; i < fixedBankSize; i++ {
-			assert.Equal(t, uint16(0xF00+b), mm.fixed[b][i], "F%d[%d]", b, i)
-		}
+			// act
+			n, err := io.Copy(l, buf)
+
+			// assert
+			assert.Equal(t, expectedLen, n, "bytes copied")
+			assert.NoError(t, err, "io.Copy error")
+
+			for b := 0; b < fixedBankCount+fixedSBBankCount; b++ {
+				for i := 0; i < fixedBankSize; i++ {
+					assert.Equal(t, uint16(0xF00+b), mm.fixed[b][i], "F%d[%d]", b, i)
+				}
+			}
+		})
 	}
 }
 
@@ -239,7 +255,7 @@ func TestLoader_SplitWrites(t *testing.T) {
 	l := &Loader{MM: &mm}
 	raw := make([]byte, fixedBankSize*2)
 	for i := 0; i < fixedBankSize; i++ {
-		binary.BigEndian.PutUint16(raw[i*2:], uint16(i)<<1)
+		binary.BigEndian.PutUint16(raw[i*2:], uint16(i))
 	}
 
 	// act
