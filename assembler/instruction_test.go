@@ -165,3 +165,30 @@ func Test_encode(t *testing.T) {
 		assert.Lenf(t, a.Problems, probCount, "problem count (%v)", test.inst)
 	}
 }
+
+func Test_encode_noop(t *testing.T) {
+	// arrange
+	a, pl := buildAssemblerLogger()
+	tests := []struct {
+		loc psudoAddress
+		exp uint16
+	}{
+		{loc: 01234, exp: 030000},
+		{loc: 04567, exp: 014570},
+	}
+
+	for _, test := range tests {
+		p := &instructionParams{logger: pl, resolver: a, extended: false, instToken: "NOOP", location: test.loc}
+		i := findInstruction(p, p.instToken)
+		require.NotNilf(t, i, "instruction lookup (%#o)", test.loc)
+		probCount := len(a.Problems)
+
+		// act
+		mc, ok := i.encode(p)
+
+		// assert
+		assert.Truef(t, ok, "result (%#o)", test.loc)
+		assert.EqualValuesf(t, test.exp, mc, "machine code (%#o)", test.loc)
+		assert.Lenf(t, a.Problems, probCount, "problem count (%#o)", test.loc)
+	}
+}
