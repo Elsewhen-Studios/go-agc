@@ -54,6 +54,8 @@ func (c *CPU) Run() {
 		time5Cycles      = -interval5ms
 		pendingSequences []*sequence
 	)
+	logc := make(chan logEvent, 1000)
+	go processLogEvents(logc)
 
 	for {
 		var timing int
@@ -63,25 +65,29 @@ func (c *CPU) Run() {
 			seq := pendingSequences[len(pendingSequences)-1]
 			pendingSequences = pendingSequences[:len(pendingSequences)-1]
 
-			fmt.Printf("----: %s\n", seq.name)
 			if subSeq := seq.execute(c, seq); subSeq != nil {
 				pendingSequences = append(pendingSequences, subSeq)
 			}
 
 			timing = seq.timing
 		} else {
-			val, err := c.mm.Read(int(c.reg[regZ]))
+			z := c.reg[regZ]
+			val, err := c.mm.Read(int(z))
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Printf("%04o: %05o (%04x, %016b)", c.reg[regZ], val, val<<1, val)
 
 			// now increment the PC counter
 			c.reg[regZ]++
 
 			instr, address := decodeInstruction(val)
-			fmt.Printf(" {%-6s %05o} T1/3:%3d  T4:%3d  T5:%3d\n", instr.name, address, time13Cycles, time4Cycles, time5Cycles)
+			logc <- logEvent{
+				z:       z,
+				code:    val,
+				instr:   &instr,
+				address: address,
+			}
 
 			if err := instr.execute(c, &instr, address); err != nil {
 				panic(err)
@@ -95,7 +101,6 @@ func (c *CPU) Run() {
 		time5Cycles += timing
 
 		if time13Cycles >= interval10ms {
-			// time to increment TIME1 & TIME3
 			time13Cycles -= interval10ms
 			pendingSequences = append(pendingSequences, &usPINCTime1)
 			pendingSequences = append(pendingSequences, &usPINCTime3)
@@ -142,4 +147,18 @@ func (c *CPU) overflow() int {
 
 func (c *CPU) interrupt(i interrupt) {
 	c.pendingInt = &i
+}
+
+type logEvent struct {
+	z       uint16
+	code    uint16
+	instr   *instruction
+	address uint16
+}
+
+func processLogEvents(logc chan logEvent) {
+	for e := range logc {
+		fmt.Printf("%04o: %05o (%04x, %016b)", e.z, e.code, e.code<<1, e.code)
+		fmt.Printf(" {%-6s %05o}\n", e.instr.name, e.address)
+	}
 }

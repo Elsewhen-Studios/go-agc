@@ -41,7 +41,6 @@ var instructionSet = []instruction{
 		timing:      1,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = false
-			fmt.Println("    interrupts enabled")
 			return nil
 		},
 	},
@@ -52,7 +51,6 @@ var instructionSet = []instruction{
 		addressMask: maskNoAddress,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
 			c.intsOff = true
-			fmt.Println("    interrupts disabled")
 			return nil
 		},
 	},
@@ -62,7 +60,6 @@ var instructionSet = []instruction{
 		addressMask: mask12BitAddress,
 		timing:      1,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
-			fmt.Printf("    jumping to %05o\n", addr)
 			c.reg.Set(regZ, addr)
 			return nil
 		},
@@ -87,7 +84,6 @@ var instructionSet = []instruction{
 					return err
 				}
 			}
-			fmt.Printf("    %05o loaded into A from %05o\n", val, addr)
 			return nil
 		},
 	},
@@ -111,7 +107,6 @@ var instructionSet = []instruction{
 					return err
 				}
 			}
-			fmt.Printf("    %05o loaded into A from %05o\n", ^val, addr)
 			return nil
 		},
 	},
@@ -146,7 +141,6 @@ var instructionSet = []instruction{
 		addressMask: mask10BitAddress,
 		timing:      2,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
-			fmt.Printf("    Wrote %05o from A to %05o\n", c.reg[regA], addr)
 			if err := c.mm.Write(int(addr), c.reg[regA]); err != nil {
 				return err
 			}
@@ -157,12 +151,10 @@ var instructionSet = []instruction{
 				// negative overflow, set A to -1 and increment Z (to skip the next instruction)
 				c.reg.Set(regA, 0177776)
 				c.reg[regZ]++
-				fmt.Println("    A set to -1 and skipping next instruction")
 			case +1:
 				// positive overflow, set A to +1 and increment Z (to skip the next instruction)
 				c.reg.Set(regA, 1)
 				c.reg[regZ]++
-				fmt.Println("    A set to +1 and skipping next instruction")
 			}
 			return nil
 		},
