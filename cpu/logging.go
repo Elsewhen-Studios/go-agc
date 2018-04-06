@@ -2,32 +2,32 @@ package cpu
 
 import "fmt"
 
-type LogEventType int
+type logEventType int
 
 const (
-	LogInstruction LogEventType = iota
-	LogTimer
-	LogUSequence
+	logInstruction logEventType = iota
+	logTimer
+	logUSequence
 )
 
-type LogEvent interface {
+type logEvent interface {
 	fmt.Stringer
-	Type() LogEventType
+	Type() logEventType
 }
 
-type Logger struct {
-	logc         chan LogEvent
-	enabledTypes map[LogEventType]bool
+type logger struct {
+	logc         chan logEvent
+	enabledTypes map[logEventType]bool
 }
 
-func NewLogger(buffer int) *Logger {
-	return &Logger{
-		logc:         make(chan LogEvent, buffer),
-		enabledTypes: make(map[LogEventType]bool),
+func newLogger(buffer int) *logger {
+	return &logger{
+		logc:         make(chan logEvent, buffer),
+		enabledTypes: make(map[logEventType]bool),
 	}
 }
 
-func (l *Logger) Process() {
+func (l *logger) process() {
 	for e := range l.logc {
 		if l.enabledTypes[e.Type()] {
 			fmt.Println(e.String())
@@ -35,43 +35,43 @@ func (l *Logger) Process() {
 	}
 }
 
-func (l *Logger) Stop() {
+func (l *logger) stop() {
 	close(l.logc)
 }
 
-func (l *Logger) Log(e LogEvent) {
+func (l *logger) log(e logEvent) {
 	l.logc <- e
 }
 
-type InstructionEvent struct {
+type instructionEvent struct {
 	z       uint16
 	code    uint16
 	instr   *instruction
 	address uint16
 }
 
-func (e InstructionEvent) Type() LogEventType { return LogInstruction }
+func (e instructionEvent) Type() logEventType { return logInstruction }
 
-func (e InstructionEvent) String() string {
+func (e instructionEvent) String() string {
 	return fmt.Sprintf("%04o: %05o (%04x) {%-6s %05o}", e.z, e.code, e.code, e.instr.name, e.address)
 }
 
-type USequenceEvent struct {
+type uSequenceEvent struct {
 	seq *sequence
 }
 
-func (e USequenceEvent) Type() LogEventType { return LogUSequence }
+func (e uSequenceEvent) Type() logEventType { return logUSequence }
 
-func (e USequenceEvent) String() string {
+func (e uSequenceEvent) String() string {
 	return fmt.Sprintf("----: %s", e.seq.name)
 }
 
-type TimerEvent struct {
+type timerEvent struct {
 	name string
 }
 
-func (e TimerEvent) Type() LogEventType { return LogTimer }
+func (e timerEvent) Type() logEventType { return logTimer }
 
-func (e TimerEvent) String() string {
+func (e timerEvent) String() string {
 	return fmt.Sprintf("Timer %s fired!", e.name)
 }

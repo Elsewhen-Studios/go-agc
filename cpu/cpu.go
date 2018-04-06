@@ -22,6 +22,7 @@ const (
 	intT4RUPT
 )
 
+// CPU simulates the core logic of the AGC.
 type CPU struct {
 	mm redirectedMemory
 
@@ -30,6 +31,7 @@ type CPU struct {
 	pendingInt *interrupt
 }
 
+// NewCPU creates a new CPU using the given main memory.
 func NewCPU(mem *memory.Main) (*CPU, error) {
 	if mem == nil {
 		mem = new(memory.Main)
@@ -41,20 +43,21 @@ func NewCPU(mem *memory.Main) (*CPU, error) {
 	return &cpu, nil
 }
 
+// Run executes instructions from main memory.
 func (c *CPU) Run() {
 	c.reg.Set(regZ, 04000)
 	var (
 		pendingSequences []*sequence
 		timers           = map[*sequence]*timer{
-			&usPINCTime1: NewTimer("TIME1", interval10ms, 0),
-			&usPINCTime3: NewTimer("TIME3", interval10ms, 0),
-			&usPINCTime4: NewTimer("TIME4", interval10ms, -interval7_5ms),
-			&usPINCTime5: NewTimer("TIME5", interval10ms, -interval5ms),
+			&usPINCTime1: newTimer("TIME1", interval10ms, 0),
+			&usPINCTime3: newTimer("TIME3", interval10ms, 0),
+			&usPINCTime4: newTimer("TIME4", interval10ms, -interval7_5ms),
+			&usPINCTime5: newTimer("TIME5", interval10ms, -interval5ms),
 		}
 	)
-	log := NewLogger(1000)
-	go log.Process()
-	defer log.Stop()
+	log := newLogger(1000)
+	go log.process()
+	defer log.stop()
 
 	for {
 		var timing int
@@ -64,7 +67,7 @@ func (c *CPU) Run() {
 			seq := pendingSequences[len(pendingSequences)-1]
 			pendingSequences = pendingSequences[:len(pendingSequences)-1]
 
-			log.Log(USequenceEvent{seq: seq})
+			log.log(uSequenceEvent{seq: seq})
 			if subSeq := seq.execute(c, seq); subSeq != nil {
 				pendingSequences = append(pendingSequences, subSeq)
 			}
@@ -81,7 +84,7 @@ func (c *CPU) Run() {
 			c.reg[regZ]++
 
 			instr, address := decodeInstruction(val)
-			log.Log(InstructionEvent{
+			log.log(instructionEvent{
 				z:       z,
 				code:    val,
 				instr:   &instr,
@@ -101,7 +104,7 @@ func (c *CPU) Run() {
 				// timer rolled over, queue up
 				// the unprogrammed sequence
 				pendingSequences = append(pendingSequences, useq)
-				log.Log(TimerEvent{name: tmr.n})
+				log.log(timerEvent{name: tmr.n})
 			}
 		}
 

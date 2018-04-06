@@ -6,7 +6,7 @@ type timer struct {
 	i int
 }
 
-func NewTimer(name string, interval, offset int) *timer {
+func newTimer(name string, interval, offset int) *timer {
 	return &timer{
 		n: name,
 		v: offset,
