@@ -1,7 +1,7 @@
 package cpu
 
 import (
-	"fmt"
+	"github.com/pkg/errors"
 )
 
 type instruction struct {
@@ -12,7 +12,7 @@ type instruction struct {
 	execute     func(*CPU, *instruction, uint16) error
 }
 
-func decodeInstruction(machineCode uint16) (instruction, uint16) {
+func decodeInstruction(machineCode uint16) (instruction, uint16, error) {
 	var bestMatch *instruction
 	for i, inst := range instructionSet {
 		if inst.code == machineCode&^inst.addressMask && (bestMatch == nil || inst.addressMask < bestMatch.addressMask) {
@@ -21,10 +21,10 @@ func decodeInstruction(machineCode uint16) (instruction, uint16) {
 	}
 
 	if bestMatch == nil {
-		panic(fmt.Sprintf("bad instruction: %05o", machineCode))
+		return instruction{}, 0, errors.Errorf("bad instruction: %05o", machineCode)
 	}
 
-	return *bestMatch, machineCode & bestMatch.addressMask
+	return *bestMatch, machineCode & bestMatch.addressMask, nil
 }
 
 const (

@@ -83,7 +83,10 @@ func (c *CPU) Run() {
 				panic(err)
 			}
 
-			instr, address := decodeInstruction(val)
+			instr, address, err := decodeInstruction(val)
+			if err != nil {
+				panic(fmt.Sprintf("failed to decode instruction at %05o: %v", z, err))
+			}
 			c.Debugger.Debug(DebugEvent{
 				z:       z,
 				code:    val,
