@@ -14,6 +14,7 @@ import (
 
 var (
 	yaAGCFormat = flag.Bool("yaagc", false, "Indicates that the memory file is in the yaAGC format")
+	debug       = flag.Bool("debug", false, "Execute with debugger attached")
 )
 
 func main() {
@@ -68,12 +69,15 @@ func main() {
 		fatal("failed to load main memory", err)
 	}
 
-	cpu, err := cpu.NewCPU(mm)
-	if err != nil {
-		fatal("cpu execution failed", err)
+	theCPU := cpu.NewCPU(mm)
+
+	if *debug {
+		d := cpu.NewInteractiveDebugger()
+		go d.Run()
+		theCPU.Debugger = d
 	}
 
-	cpu.Run()
+	theCPU.Run()
 }
 
 func fatal(msg string, err error) {

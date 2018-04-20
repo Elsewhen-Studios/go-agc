@@ -29,10 +29,12 @@ type CPU struct {
 	reg        registers
 	intsOff    bool
 	pendingInt *interrupt
+
+	Debugger Debugger
 }
 
 // NewCPU creates a new CPU using the given main memory.
-func NewCPU(mem *memory.Main) (*CPU, error) {
+func NewCPU(mem *memory.Main) *CPU {
 	if mem == nil {
 		mem = new(memory.Main)
 	}
@@ -40,7 +42,8 @@ func NewCPU(mem *memory.Main) (*CPU, error) {
 	var cpu CPU
 	cpu.mm.reg = &cpu.reg
 	cpu.mm.mm = mem
-	return &cpu, nil
+	cpu.Debugger = new(noDebugger)
+	return &cpu
 }
 
 // Run executes instructions from main memory.
@@ -80,16 +83,16 @@ func (c *CPU) Run() {
 				panic(err)
 			}
 
-			// now increment the PC counter
-			c.reg[regZ]++
-
 			instr, address := decodeInstruction(val)
-			log.log(instructionEvent{
+			c.Debugger.Debug(DebugEvent{
 				z:       z,
 				code:    val,
 				instr:   &instr,
 				address: address,
 			})
+
+			// now increment the PC counter
+			c.reg[regZ]++
 
 			if err := instr.execute(c, &instr, address); err != nil {
 				panic(err)
