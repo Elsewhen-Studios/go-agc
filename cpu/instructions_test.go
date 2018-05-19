@@ -5,13 +5,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDecodeInstruction(t *testing.T) {
 	// act
-	instr, address := decodeInstruction(030000 + 07777)
+	instr, address, err := decodeInstruction(030000 + 07777)
 
 	// assert
+	assert.NoError(t, err)
 	assert.Equal(t, "CA", instr.name, "instr.name")
 	assert.Equal(t, uint16(07777), address, "address")
 }
@@ -190,6 +192,60 @@ func TestInstructionCS(t *testing.T) {
 	})
 }
 
+func TestInstructionDXCH(t *testing.T) {
+	runInstructionTest(t, "DXCH", "simple exchange", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regA, 0xA)
+		cpu.reg.Set(regL, 0xB)
+		cpu.mm.Write(0400, 0xC)
+		cpu.mm.Write(0401, 0xD)
+
+		// act
+		err := i.execute(cpu, i, 0400)
+
+		// assert
+		require.NoError(t, err)
+		assert.Equal(t, uint16(0xC), cpu.reg[regA], "register A")
+		assert.Equal(t, uint16(0xD), cpu.reg[regL], "register L")
+		memK1, _ := cpu.mm.Read(0400)
+		memK2, _ := cpu.mm.Read(0401)
+		assert.Equal(t, uint16(0xA), memK1, "memory @ K")
+		assert.Equal(t, uint16(0xB), memK2, "memory @ K+1")
+	})
+
+	runInstructionTest(t, "DXCH", "overlap exchange", func(t *testing.T, cpu *CPU, i *instruction) {
+		// arrange
+		cpu.reg.Set(regA, 0xA)
+		cpu.reg.Set(regL, 0xB)
+		cpu.reg.Set(regQ, 0xC)
+
+		// act
+		err := i.execute(cpu, i, uint16(regL))
+
+		// assert
+		require.NoError(t, err)
+		assert.Equal(t, uint16(0xC), cpu.reg[regA], "register A")
+		assert.Equal(t, uint16(0xA), cpu.reg[regL], "register L")
+		assert.Equal(t, uint16(0xB), cpu.reg[regQ], "register Q")
+	})
+
+	runInstructionTest(t, "DXCH", "exchange fixed memory", func(t *testing.T, cpu *CPU, i *instruction) {
+		// act
+		err := i.execute(cpu, i, 02100)
+
+		// assert
+		assert.Error(t, err)
+	})
+
+	runInstructionTest(t, "DXCH", "exchange K+1 fixed memory", func(t *testing.T, cpu *CPU, i *instruction) {
+		// act
+		err := i.execute(cpu, i, 01777)
+
+		// assert
+		assert.Error(t, err)
+	})
+}
+
 func TestInstructionTS(t *testing.T) {
 	runInstructionTest(t, "TS", "positive overflow", func(t *testing.T, cpu *CPU, i *instruction) {
 		// arrange
@@ -249,7 +305,7 @@ func runInstructionTest(t *testing.T, name, scenario string, f func(*testing.T, 
 		subTestName += " - " + scenario
 	}
 	t.Run(subTestName, func(t *testing.T) {
-		cpu, _ := NewCPU(nil)
+		cpu := NewCPU(nil)
 		i := getInstruction(name)
 
 		f(t, cpu, &i)

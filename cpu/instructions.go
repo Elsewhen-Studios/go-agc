@@ -116,21 +116,25 @@ var instructionSet = []instruction{
 		addressMask: 001776,
 		timing:      3,
 		execute: func(c *CPU, i *instruction, addr uint16) error {
-			// exchange A with K
-			tmp, err := c.mm.Read(int(addr))
-			if err != nil {
-				return err
-			}
-			c.mm.Write(int(addr), c.reg[regA])
-			c.reg.Set(regA, tmp)
-
 			// exchange L with K+1
-			tmp, err = c.mm.Read(int(addr + 1))
+			tmp, err := c.mm.Read(int(addr + 1))
 			if err != nil {
 				return err
 			}
-			c.mm.Write(int(addr+1), c.reg[regL])
+			if err := c.mm.Write(int(addr+1), c.reg[regL]); err != nil {
+				return err
+			}
 			c.reg.Set(regL, tmp)
+
+			// exchange A with K
+			tmp, err = c.mm.Read(int(addr))
+			if err != nil {
+				return err
+			}
+			if err := c.mm.Write(int(addr), c.reg[regA]); err != nil {
+				return err
+			}
+			c.reg.Set(regA, tmp)
 
 			return nil
 		},
